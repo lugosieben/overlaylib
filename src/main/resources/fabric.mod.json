@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "overlaylib",
+	"version": "${version}",
+	"name": "OverlayLib",
+	"description": "Library for rendering live info-overlays",
+	"authors": [
+		"Lugo_Sieben"
+	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/overlaylib",
+        "issues": "https://github.com/lugosieben/overlaylib/issues/new",
+        "sources": "https://github.com/lugosieben/overlaylib"
+	},
+	"license": "CC BY-NC-SA 4.0",
+	"icon": "assets/overlaylib/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"net.lugo.overlaylib.OverlayLib"
+		]
+	},
+	"mixins": [],
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "minecraft": "${minecraft_version_compatible}",
+        "java": ">=${java_version}",
+        "fabric-api": ">=${fabric_api_version}"
+    },
+    "custom": {
+        "modmenu": {
+            "badges": ["library"]
+        }
+    }
+}

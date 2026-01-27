@@ -19,6 +19,8 @@ import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -118,15 +120,21 @@ public abstract class OverlayRenderer {
             return;
         }
 
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push("buildBuffer");
+
         MeshData builtBuffer = buffer.buildOrThrow();
         MeshData.DrawState drawParams = builtBuffer.drawState();
         VertexFormat format = drawParams.format();
 
+        profiler.popPush("upload");
         GpuBuffer vertices = upload(builtBuffer, drawParams, format);
+        profiler.popPush("draw");
         draw(builtBuffer, drawParams, vertices);
 
         vertexBuffer.rotate();
         buffer = null;
+        profiler.pop();
     }
 
     private GpuBuffer upload(MeshData builtBuffer, MeshData.DrawState drawParams, VertexFormat format) {

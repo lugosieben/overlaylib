@@ -143,7 +143,7 @@ public class CachedOverlayManager implements OverlayManager {
 
     public void removeOldEntries(int targetSize) {
         if (targetSize < 0) return;
-        if (cache.size() < targetSize) return;
+        if (cache.size() + 16 < targetSize) return;
         cache.values().stream()
                 .sorted(Comparator.comparingLong(CacheSectionPosEntry::lastAccessTime))
                 .limit(cache.size() / 5)
@@ -180,6 +180,7 @@ public class CachedOverlayManager implements OverlayManager {
     public void clear(SectionPos sectionPos) {
         cache.remove(sectionPos);
         queuedSections.remove(sectionPos);
+        compute(sectionPos);
     }
 
     public void clearFromBlockPos(BlockPos blockPos) {

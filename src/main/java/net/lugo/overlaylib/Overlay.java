@@ -7,6 +7,8 @@ import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,10 +78,19 @@ public class Overlay {
     public void register() {
         WorldRenderEvents.END_MAIN.register((context -> {
             if (MC.player == null || MC.level == null) return;
+            ProfilerFiller profiler = Profiler.get();
+            profiler.push("overlaylib");
+            profiler.push("render");
+            profiler.push("startBatch");
             renderer.startBatch(context);
+            profiler.popPush("render");
             renderAllBlocks();
+            profiler.popPush("endBatch");
             renderer.endBatch();
+            profiler.pop();
             renderer.uploadThenDraw();
+            profiler.pop();
+            profiler.pop();
         }));
     }
 }

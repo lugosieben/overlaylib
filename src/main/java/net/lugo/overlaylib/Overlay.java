@@ -2,6 +2,7 @@ package net.lugo.overlaylib;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.lugo.overlaylib.util.DistanceUtil;
+import net.lugo.overlaylib.util.OverlayManagerUpdateData;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -9,10 +10,32 @@ import net.minecraft.core.SectionPos;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Optional;
 
-public record Overlay(OverlayRenderer renderer, Function<BlockPos, OverlayRendererBlockData> blockDataFunction) {
+public class Overlay {
     private static final Minecraft MC = Minecraft.getInstance();
+
+    private final OverlayRenderer renderer;
+    private final OverlayManager overlayManager;
+    private int chunkScanRadius;
+
+    public Overlay(OverlayRenderer renderer, int initialChunkScanRadius, OverlayManager manager) {
+        this.renderer = renderer;
+        this.chunkScanRadius = initialChunkScanRadius;
+        this.overlayManager = manager;
+    }
+
+    public Optional<OverlayManager> getOverlayManager() {
+        return Optional.ofNullable(overlayManager);
+    }
+
+    public void setChunkScanRadius(int radius) {
+        this.chunkScanRadius = radius;
+    }
+
+    public int getChunkScanRadius() {
+        return this.chunkScanRadius;
+    }
 
     @SuppressWarnings("DataFlowIssue")
     private void renderAllBlocks() {
@@ -20,7 +43,9 @@ public record Overlay(OverlayRenderer renderer, Function<BlockPos, OverlayRender
         int playerChunkZ = (int) Math.floor(MC.player.getZ() / 16.0);
         List<SectionPos> sectionsToRender = new ArrayList<>();
         BlockPos playerPos = MC.player.blockPosition();
-        int effectiveChunkRadius = 1;
+        int effectiveChunkRadius = Math.min(chunkScanRadius, MC.options.getEffectiveRenderDistance() + 1);
+
+        overlayManager.update(new OverlayManagerUpdateData(chunkScanRadius));
 
         for (int dx = -effectiveChunkRadius; dx <= effectiveChunkRadius; dx++) {
             for (int dz = -effectiveChunkRadius; dz <= effectiveChunkRadius; dz++) {
@@ -40,20 +65,10 @@ public record Overlay(OverlayRenderer renderer, Function<BlockPos, OverlayRender
         });
 
         for (SectionPos sectionPos : sectionsToRender) {
-            int minX = SectionPos.sectionToBlockCoord(sectionPos.getX());
-            int minY = SectionPos.sectionToBlockCoord(sectionPos.getY());
-            int minZ = SectionPos.sectionToBlockCoord(sectionPos.getZ());
-
-            for (int x = 0; x < 16; x++) {
-                for (int y = 0; y < 16; y++) {
-                    for (int z = 0; z < 16; z++) {
-                        BlockPos blockPos = new BlockPos(minX + x, minY + y, minZ + z);
-                        OverlayRendererBlockData blockData = blockDataFunction.apply(blockPos);
-                        if (blockData.shouldRender()) {
-                            renderer.addBlock(blockData);
-                        }
-                    }
-                }
+            OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
+            if (blocks == null) continue;
+            for (OverlayRendererBlockData blockData : blocks) {
+                renderer.addBlock(blockData);
             }
         }
     }

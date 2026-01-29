@@ -2,7 +2,6 @@ package net.lugo.overlaylib;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.lugo.overlaylib.util.DistanceUtil;
-import net.lugo.overlaylib.util.OverlayManagerUpdateData;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -12,7 +11,6 @@ import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class Overlay {
     private static final Minecraft MC = Minecraft.getInstance();
@@ -21,19 +19,34 @@ public class Overlay {
     private final OverlayManager overlayManager;
     private int chunkScanRadius;
     private boolean active = true;
+    private boolean isRegistered = false;
+
+    private int lastPlayerChunkX = Integer.MIN_VALUE;
+    private int lastPlayerChunkZ = Integer.MIN_VALUE;
+    private int lastEffectiveChunkRadius = -1;
+    private final List<SectionPos> cachedSections = new ArrayList<>();
 
     public Overlay(OverlayRenderer renderer, int initialChunkScanRadius, OverlayManager manager) {
         this.renderer = renderer;
         this.chunkScanRadius = initialChunkScanRadius;
         this.overlayManager = manager;
+        overlayManager.setChunkScanRadius(chunkScanRadius);
     }
 
-    public Optional<OverlayManager> getOverlayManager() {
-        return Optional.ofNullable(overlayManager);
+    public OverlayManager getOverlayManager() {
+        return overlayManager;
+    }
+
+    public void setActive(boolean isActive) {
+        this.active = isActive;
+        overlayManager.setActive(isActive);
+        if (isActive) overlayManager.setChunkScanRadius(chunkScanRadius);
     }
 
     public void setChunkScanRadius(int radius) {
         this.chunkScanRadius = radius;
+        this.lastEffectiveChunkRadius = -1;
+        overlayManager.setChunkScanRadius(radius);
     }
 
     public int getChunkScanRadius() {
@@ -44,30 +57,34 @@ public class Overlay {
     private void renderAllBlocks() {
         int playerChunkX = (int) Math.floor(MC.player.getX() / 16.0);
         int playerChunkZ = (int) Math.floor(MC.player.getZ() / 16.0);
-        List<SectionPos> sectionsToRender = new ArrayList<>();
         BlockPos playerPos = MC.player.blockPosition();
         int effectiveChunkRadius = Math.min(chunkScanRadius, MC.options.getEffectiveRenderDistance() + 1);
 
-        overlayManager.update(new OverlayManagerUpdateData(chunkScanRadius, active));
-
-        for (int dx = -effectiveChunkRadius; dx <= effectiveChunkRadius; dx++) {
-            for (int dz = -effectiveChunkRadius; dz <= effectiveChunkRadius; dz++) {
-                if (dx * dx + dz * dz > effectiveChunkRadius * effectiveChunkRadius) continue;
-                int chunkX = playerChunkX + dx;
-                int chunkZ = playerChunkZ + dz;
-                for (int sectionY = MC.level.getMinSectionY(); sectionY <= MC.level.getMaxSectionY(); sectionY++) {
-                    sectionsToRender.add(SectionPos.of(chunkX, sectionY, chunkZ));
+        if (playerChunkX != lastPlayerChunkX || playerChunkZ != lastPlayerChunkZ || effectiveChunkRadius != lastEffectiveChunkRadius) {
+            cachedSections.clear();
+            for (int dx = -effectiveChunkRadius; dx <= effectiveChunkRadius; dx++) {
+                for (int dz = -effectiveChunkRadius; dz <= effectiveChunkRadius; dz++) {
+                    if (dx * dx + dz * dz > effectiveChunkRadius * effectiveChunkRadius) continue;
+                    int chunkX = playerChunkX + dx;
+                    int chunkZ = playerChunkZ + dz;
+                    for (int sectionY = MC.level.getMinSectionY(); sectionY <= MC.level.getMaxSectionY(); sectionY++) {
+                        cachedSections.add(SectionPos.of(chunkX, sectionY, chunkZ));
+                    }
                 }
             }
+
+            cachedSections.sort((a, b) -> {
+                double distA = DistanceUtil.getDistanceSquared(a, playerPos);
+                double distB = DistanceUtil.getDistanceSquared(b, playerPos);
+                return Double.compare(distA, distB);
+            });
+
+            lastPlayerChunkX = playerChunkX;
+            lastPlayerChunkZ = playerChunkZ;
+            lastEffectiveChunkRadius = effectiveChunkRadius;
         }
 
-        sectionsToRender.sort((a, b) -> {
-            double distA = DistanceUtil.getDistanceSquared(a, playerPos);
-            double distB = DistanceUtil.getDistanceSquared(b, playerPos);
-            return Double.compare(distA, distB);
-        });
-
-        for (SectionPos sectionPos : sectionsToRender) {
+        for (SectionPos sectionPos : cachedSections) {
             OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
             if (blocks == null) continue;
             for (OverlayRendererBlockData blockData : blocks) {
@@ -76,12 +93,9 @@ public class Overlay {
         }
     }
 
-    public void setActive(boolean _active) {
-        this.active = _active;
-        overlayManager.update(new OverlayManagerUpdateData(chunkScanRadius, _active));
-    }
-
     public void register() {
+        if (isRegistered) return;
+        isRegistered = true;
         WorldRenderEvents.END_MAIN.register((context -> {
             if (MC.player == null || MC.level == null || !active) return;
             ProfilerFiller profiler = Profiler.get();

@@ -9,8 +9,8 @@ import org.joml.Matrix4f;
 
 public class SimpleTextureOverlayRenderer extends OverlayRenderer {
 
-    public SimpleTextureOverlayRenderer(Identifier texture) {
-        super(RenderPipelines.POSITION_TEX_COLOR_FOG, texture, true);
+    public SimpleTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
+        super(RenderPipelines.POSITION_TEX_COLOR_FOG, texture, doIrisFlickerFix);
     }
 
     @Override

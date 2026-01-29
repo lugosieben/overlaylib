@@ -20,6 +20,7 @@ public class Overlay {
     private final OverlayRenderer renderer;
     private final OverlayManager overlayManager;
     private int chunkScanRadius;
+    private boolean active = true;
 
     public Overlay(OverlayRenderer renderer, int initialChunkScanRadius, OverlayManager manager) {
         this.renderer = renderer;
@@ -47,7 +48,7 @@ public class Overlay {
         BlockPos playerPos = MC.player.blockPosition();
         int effectiveChunkRadius = Math.min(chunkScanRadius, MC.options.getEffectiveRenderDistance() + 1);
 
-        overlayManager.update(new OverlayManagerUpdateData(chunkScanRadius));
+        overlayManager.update(new OverlayManagerUpdateData(chunkScanRadius, active));
 
         for (int dx = -effectiveChunkRadius; dx <= effectiveChunkRadius; dx++) {
             for (int dz = -effectiveChunkRadius; dz <= effectiveChunkRadius; dz++) {
@@ -75,9 +76,14 @@ public class Overlay {
         }
     }
 
+    public void setActive(boolean _active) {
+        this.active = _active;
+        overlayManager.update(new OverlayManagerUpdateData(chunkScanRadius, _active));
+    }
+
     public void register() {
         WorldRenderEvents.END_MAIN.register((context -> {
-            if (MC.player == null || MC.level == null) return;
+            if (MC.player == null || MC.level == null || !active) return;
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");
             profiler.push("render");

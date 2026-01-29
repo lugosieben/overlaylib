@@ -34,6 +34,7 @@ public class CachedOverlayManager implements OverlayManager {
 
     private int maxCacheSize;
     private final int maxComputationsPerTick;
+    private boolean active;
 
     public CachedOverlayManager(Function<BlockPos, OverlayRendererBlockData> computeFunction) {
         this(computeFunction, 1024, 32);
@@ -73,7 +74,7 @@ public class CachedOverlayManager implements OverlayManager {
 
 
     public void processQueue() {
-        if (MC.player == null || MC.level == null) return;
+        if (MC.player == null || MC.level == null || !active) return;
 
         if (computeQueue.size() > maxComputationsPerTick * 2) {
             reprioritizeQueue();
@@ -109,6 +110,11 @@ public class CachedOverlayManager implements OverlayManager {
     public void update(OverlayManagerUpdateData data) {
         if (MC.level == null) return;
         removeOldEntries();
+        if (!data.active()) {
+            active = false;
+            clearAll();
+            return;
+        }
         int requiredSections = getRequiredSections(data.chunkScanRadius());
         if (requiredSections > maxCacheSize) {
             updateMaxCacheSize(requiredSections);

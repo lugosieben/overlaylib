@@ -9,8 +9,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Overlay {
     private static final Minecraft MC = Minecraft.getInstance();
@@ -62,22 +61,21 @@ public class Overlay {
 
         if (playerChunkX != lastPlayerChunkX || playerChunkZ != lastPlayerChunkZ || effectiveChunkRadius != lastEffectiveChunkRadius) {
             cachedSections.clear();
+            Map<SectionPos, Double> sectionDistances = new HashMap<>();
             for (int dx = -effectiveChunkRadius; dx <= effectiveChunkRadius; dx++) {
                 for (int dz = -effectiveChunkRadius; dz <= effectiveChunkRadius; dz++) {
                     if (dx * dx + dz * dz > effectiveChunkRadius * effectiveChunkRadius) continue;
                     int chunkX = playerChunkX + dx;
                     int chunkZ = playerChunkZ + dz;
                     for (int sectionY = MC.level.getMinSectionY(); sectionY <= MC.level.getMaxSectionY(); sectionY++) {
-                        cachedSections.add(SectionPos.of(chunkX, sectionY, chunkZ));
+                        SectionPos sectionPos = SectionPos.of(chunkX, sectionY, chunkZ);
+                        cachedSections.add(sectionPos);
+                        sectionDistances.put(sectionPos, DistanceUtil.getDistanceSquared(sectionPos, playerPos));
                     }
                 }
             }
 
-            cachedSections.sort((a, b) -> {
-                double distA = DistanceUtil.getDistanceSquared(a, playerPos);
-                double distB = DistanceUtil.getDistanceSquared(b, playerPos);
-                return Double.compare(distA, distB);
-            });
+            cachedSections.sort(Comparator.comparingDouble(sectionDistances::get));
 
             lastPlayerChunkX = playerChunkX;
             lastPlayerChunkZ = playerChunkZ;

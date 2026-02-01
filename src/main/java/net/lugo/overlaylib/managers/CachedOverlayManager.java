@@ -5,6 +5,7 @@ import net.lugo.overlaylib.OverlayLib;
 import net.lugo.overlaylib.OverlayManager;
 import net.lugo.overlaylib.util.DistanceUtil;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.lugo.overlaylib.util.ThreadUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -20,6 +21,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 public class CachedOverlayManager implements OverlayManager {
@@ -43,6 +45,7 @@ public class CachedOverlayManager implements OverlayManager {
     private int maxCacheSize;
     private int maxComputationsPerTick;
     private boolean active;
+    private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
     public CachedOverlayManager(Function<BlockPos, OverlayRendererBlockData> computeFunction) {
         this(computeFunction, 1024, 32);
@@ -68,8 +71,7 @@ public class CachedOverlayManager implements OverlayManager {
 
     @Override
     public OverlayRendererBlockData[] getSectionBlocks(SectionPos sectionPos) {
-        if (importantSections.contains(sectionPos)) {
-            importantSections.remove(sectionPos);
+        if (importantSections.remove(sectionPos)) {
             compute(sectionPos);
         }
 
@@ -84,28 +86,42 @@ public class CachedOverlayManager implements OverlayManager {
 
 
     public void processQueue() {
-        if (MC.player == null || MC.level == null || !active) return;
-
-        removeOldEntries();
-
-        if (computeQueue.size() > maxComputationsPerTick * 2) {
-            reprioritizeQueue();
+        if (isProcessing.compareAndSet(false, true)) {
+            ThreadUtil.submit(this::processQueueInternal);
         }
+    }
 
-        int processed = 0;
-        while (processed < maxComputationsPerTick && !computeQueue.isEmpty()) {
-            SectionPos sectionPos;
-            if (!importantSections.isEmpty()) {
-                sectionPos = importantSections.poll();
-            } else {
-                sectionPos = computeQueue.poll();
+    private void processQueueInternal() {
+        try {
+            if (MC.player == null || MC.level == null || !active) return;
+
+            removeOldEntries();
+
+            if (computeQueue.size() > maxComputationsPerTick * 2) {
+                reprioritizeQueue();
             }
-            if (sectionPos == null) break;
-            queuedSections.remove(sectionPos);
-            if (!cache.containsKey(sectionPos)) {
-                compute(sectionPos);
+
+            int processed = 0;
+            while (processed < maxComputationsPerTick && !computeQueue.isEmpty()) {
+                if (!active || MC.player == null || MC.level == null) break;
+
+                SectionPos sectionPos;
+                if (!importantSections.isEmpty()) {
+                    sectionPos = importantSections.poll();
+                } else {
+                    sectionPos = computeQueue.poll();
+                }
+                if (sectionPos == null) break;
+                queuedSections.remove(sectionPos);
+                if (!cache.containsKey(sectionPos)) {
+                    compute(sectionPos);
+                }
+                processed++;
             }
-            processed++;
+        } catch (Exception e) {
+            OverlayLib.LOGGER.error("Error in OverlayLib worker", e);
+        } finally {
+            isProcessing.set(false);
         }
     }
 
@@ -207,7 +223,7 @@ public class CachedOverlayManager implements OverlayManager {
             }
         }
 
-        OverlayRendererBlockData[] blocksArray = renderableBlocks.toArray(new OverlayRendererBlockData[0]);
+        OverlayRendererBlockData[] blocksArray = renderableBlocks.toArray(OverlayRendererBlockData[]::new);
         cache.put(sectionPos, new CacheSectionPosEntry(sectionPos, blocksArray, System.currentTimeMillis()));
     }
 

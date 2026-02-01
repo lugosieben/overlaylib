@@ -34,6 +34,6 @@ public class SimpleOverlayManager implements OverlayManager {
                 }
             }
         }
-        return renderableBlocks.toArray(new OverlayRendererBlockData[0]);
+        return renderableBlocks.toArray(OverlayRendererBlockData[]::new);
     }
 }

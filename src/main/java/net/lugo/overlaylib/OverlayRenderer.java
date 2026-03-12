@@ -12,12 +12,10 @@ import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.*;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
-import net.lugo.overlaylib.util.TextureSection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -85,24 +83,20 @@ public abstract class OverlayRenderer {
         onStartBatch();
     }
 
-    public final void addBlock(OverlayRendererBlockData blockData) {
-        addBlock(blockData.pos(), blockData.r(), blockData.g(), blockData.b(), blockData.textureSection().orElse(TextureSection.SINGULAR));
-    }
-
-    public final void addBlock(BlockPos pos, float r, float g, float b, TextureSection textureSection) {
+    public final void addBlock(OverlayRendererBlockData data) {
         if (!batchStarted || MC.player == null) return;
 
-        boolean isNearby = pos.closerThan(MC.player.blockPosition(), 12d);
+        boolean isNearby = data.pos().closerThan(MC.player.blockPosition(), 12d);
 
         getPoseStack().pushPose();
-        getPoseStack().translate(pos.getX(), pos.getY(), pos.getZ());
+        getPoseStack().translate(data.pos().getX(), data.pos().getY() + data.yOffset(), data.pos().getZ());
 
         Matrix4f positionMatrix = getPoseStack().last().pose();
         if (!isNearby && doIrisFlickerFix) {
             getPoseStack().translate(0, 3E-2, 0);
         }
 
-        addVertices(buffer, positionMatrix, r, g, b, textureSection.uStart(), textureSection.uEnd(), textureSection.vStart(), textureSection.vEnd(), pos);
+        addVertices(buffer, positionMatrix, data);
         hasVertices = true;
         getPoseStack().popPose();
     }
@@ -197,7 +191,7 @@ public abstract class OverlayRenderer {
 
     protected abstract void onStartBatch();
 
-    protected abstract void addVertices(VertexConsumer buffer, Matrix4f positionMatrix, float r, float g, float b, float uStart, float uEnd, float vStart, float vEnd, BlockPos pos);
+    protected abstract void addVertices(VertexConsumer buffer, Matrix4f positionMatrix, OverlayRendererBlockData blockData);
 
     protected abstract void onEndBatch();
 

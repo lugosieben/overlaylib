@@ -1,6 +1,6 @@
 package net.lugo.overlaylib;
 
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.lugo.overlaylib.util.DistanceUtil;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
@@ -94,7 +94,7 @@ public class Overlay {
     public void register() {
         if (isRegistered) return;
         isRegistered = true;
-        WorldRenderEvents.END_MAIN.register((context -> {
+        LevelRenderEvents.END_MAIN.register((context -> {
             if (MC.player == null || MC.level == null || !active) return;
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");

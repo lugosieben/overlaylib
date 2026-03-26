@@ -2,6 +2,8 @@ package net.lugo.overlaylib;
 
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.lugo.overlaylib.command.OverlayLibCommand;
 import net.lugo.overlaylib.util.IrisUtil;
 import net.lugo.overlaylib.util.RenderPipelines;
 import org.slf4j.Logger;
@@ -14,6 +16,8 @@ public class OverlayLib implements ModInitializer {
 	@Override
 	public void onInitialize() {
         LOGGER.info("OverlayLib (" + MOD_ID + ") initializing.");
+
+        ClientCommandRegistrationCallback.EVENT.register(OverlayLibCommand::register);
 
         if (IrisUtil.irisDetected()) {
             LOGGER.info("Iris detected.");

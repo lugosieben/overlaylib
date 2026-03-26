@@ -10,7 +10,7 @@ import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.*;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
@@ -59,7 +59,7 @@ public abstract class OverlayRenderer {
         this.doIrisFlickerFix = doIrisFlickerFix;
     }
 
-    public final void startBatch(WorldRenderContext context) {
+    public final void startBatch(LevelRenderContext context) {
         if (batchStarted) return;
 
         if (textureSetup == null) {
@@ -68,8 +68,8 @@ public abstract class OverlayRenderer {
             textureSetup = TextureSetup.singleTexture(gpuTextureView, gpuSampler);
         }
 
-        poseStack = context.matrices();
-        Vec3 camPos = context.worldState().cameraRenderState.pos;
+        poseStack = context.poseStack();
+        Vec3 camPos = context.levelState().cameraRenderState.pos;
 
         getPoseStack().pushPose();
         getPoseStack().translate((float) -camPos.x, (float) -camPos.y, (float) -camPos.z);

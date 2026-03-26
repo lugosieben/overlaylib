@@ -1,0 +1,9 @@
+{
+  "commands.overlaylib.version": "OverlayLib version: %s",
+  "commands.overlaylib.tests.enabled": "Overlay test enabled.",
+  "commands.overlaylib.tests.already_enabled": "Overlay test is already enabled.",
+  "commands.overlaylib.tests.disabled": "Overlay test disabled.",
+  "commands.overlaylib.tests.not_initialized": "Overlay test was not initialized yet.",
+  "commands.overlaylib.tests.cleared_all": "Overlay test cache cleared for all sections.",
+  "commands.overlaylib.tests.cleared_pos": "Overlay test cache cleared around block: %s"
+}

@@ -1,8 +1,9 @@
 package net.lugo.overlaylib.util;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.lugo.overlaylib.OverlayLib;
@@ -14,11 +15,12 @@ public final class RenderPipelines {
             .withVertexShader(ShaderHelper.POSITION_TEX_COLOR_FOG_VERTEX_SHADER)
             .withFragmentShader(ShaderHelper.POSITION_TEX_COLOR_FOG_FRAGMENT_SHADER)
             .withSampler("Sampler0")
-            .withBlend(BlendFunction.TRANSLUCENT)
+            .withColorTargetState(new ColorTargetState(
+                    BlendFunction.TRANSLUCENT
+            ))
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
-            .withDepthWrite(false)
             .build();
 
     public static void registerWithIris() {

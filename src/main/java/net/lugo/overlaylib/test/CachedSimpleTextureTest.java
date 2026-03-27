@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-public class SimpleOverlayTest {
+public class CachedSimpleTextureTest {
 	private static final Minecraft MC = Minecraft.getInstance();
 	private static final TextureSection.TextureSectionData TEST_SECTIONS = new TextureSection.TextureSectionData(2, 2);
 	private static final TextureSection[] TEST_TEXTURES = {
@@ -31,11 +31,11 @@ public class SimpleOverlayTest {
 			Optional.of(TEST_TEXTURES[2]),
 			Optional.of(TEST_TEXTURES[3])
 	);
-	private static final String TEST_ID = "simple";
-	private static final SimpleOverlayTestInstance INSTANCE = new SimpleOverlayTestInstance();
+	private static final String TEST_ID = "cached_simple_texture";
+	private static final CachedSimpleTextureTestInstance INSTANCE = new CachedSimpleTextureTestInstance();
+	private static final ThreadLocal<BlockPos.MutableBlockPos> ABOVE_POS = ThreadLocal.withInitial(BlockPos.MutableBlockPos::new);
 
-	private SimpleOverlayTest() {
-	}
+	private CachedSimpleTextureTest() { }
 
 	public static void register() {
 		Map<String, Supplier<Boolean>> functions = Map.of(
@@ -51,28 +51,30 @@ public class SimpleOverlayTest {
 		BlockState state = MC.level.getBlockState(pos);
 		if (state.isAir()) return OverlayRendererBlockData.NO_RENDER;
 
-		BlockPos abovePos = pos.above();
+		BlockPos.MutableBlockPos abovePos = ABOVE_POS.get();
+		abovePos.set(pos.getX(), pos.getY() + 1, pos.getZ());
 		if (!MC.level.getBlockState(abovePos).isAir()) return OverlayRendererBlockData.NO_RENDER;
 		if (!state.isSolidRender()) return OverlayRendererBlockData.NO_RENDER;
 
-		int hash = Math.abs((pos.getX() * 31) ^ (pos.getY() * 13) ^ (pos.getZ() * 17));
+		int hash = (pos.getX() * 31) ^ (pos.getY() * 13) ^ (pos.getZ() * 17);
+		hash ^= (hash >>> 16);
 
 		float r = 0.35f + ((hash & 0x3F) / 63.0f) * 0.65f;
 		float g = 0.35f + (((hash >> 6) & 0x3F) / 63.0f) * 0.65f;
 		float b = 0.35f + (((hash >> 12) & 0x3F) / 63.0f) * 0.65f;
 
 		int textureIndex = ((hash & 1) | (((hash >> 1) & 1) << 1));
-		return new OverlayRendererBlockData(pos.immutable(), r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex));
+		return new OverlayRendererBlockData(pos, r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex));
 	}
 
-	private static final class SimpleOverlayTestInstance extends OverlayTesting.OverlayTest {
+	private static final class CachedSimpleTextureTestInstance extends OverlayTesting.OverlayTest {
 		private Overlay testOverlay;
 		private boolean registered;
 
 		@Override
 		protected void onEnable() {
 			if (testOverlay == null) {
-				CachedOverlayManager manager = new CachedOverlayManager(SimpleOverlayTest::computeBlockData, 8192, 64);
+				CachedOverlayManager manager = new CachedOverlayManager(CachedSimpleTextureTest::computeBlockData, 8192, 64);
 				testOverlay = new Overlay(
 						new SimpleTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png"), true),
 						6,

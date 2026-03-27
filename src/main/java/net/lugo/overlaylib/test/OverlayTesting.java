@@ -24,7 +24,8 @@ public final class OverlayTesting {
             return;
         }
 
-        SimpleOverlayTest.register();
+        SimpleSimpleTextureTest.register();
+        CachedSimpleTextureTest.register();
     }
 
     public static synchronized void registerTest(String id, OverlayTest test, Map<String, Supplier<Boolean>> functions) {

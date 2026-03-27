@@ -6,6 +6,10 @@ import net.minecraft.core.SectionPos;
 public interface OverlayManager {
     OverlayRendererBlockData[] getSectionBlocks(SectionPos sectionPos);
 
+    default OverlayRendererBlockData[] getSectionBlocks(int sectionX, int sectionY, int sectionZ) {
+        return getSectionBlocks(SectionPos.of(sectionX, sectionY, sectionZ));
+    }
+
     default void setActive(boolean active) {}
 
     default void setChunkScanRadius(int radius) {}

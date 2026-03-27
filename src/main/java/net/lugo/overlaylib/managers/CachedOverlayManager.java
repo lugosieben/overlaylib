@@ -72,7 +72,6 @@ public class CachedOverlayManager implements OverlayManager {
     public record CacheSectionPosEntry(SectionPos pos, OverlayRendererBlockData[] blocks, long lastAccessTime) { }
 
     public void requestSection(SectionPos sectionPos) {
-        if (cache.containsKey(sectionPos)) return;
         if (queuedSections.add(sectionPos)) {
             computeQueue.offer(sectionPos);
         }
@@ -80,10 +79,12 @@ public class CachedOverlayManager implements OverlayManager {
 
     @Override
     public OverlayRendererBlockData[] getSectionBlocks(SectionPos sectionPos) {
-        if (importantSections.remove(sectionPos)) {
-            compute(sectionPos);
-        }
+        return getSectionBlocks(sectionPos.x(), sectionPos.y(), sectionPos.z());
+    }
 
+    @Override
+    public OverlayRendererBlockData[] getSectionBlocks(int sectionX, int sectionY, int sectionZ) {
+        SectionPos sectionPos = SectionPos.of(sectionX, sectionY, sectionZ);
         CacheSectionPosEntry entry = cache.get(sectionPos);
         if (entry != null) {
             return entry.blocks();
@@ -210,7 +211,7 @@ public class CachedOverlayManager implements OverlayManager {
     }
 
     public void setMaxComputationsPerTick(int maxComputationsPerTick) {
-        this.maxComputationsPerTick = maxComputationsPerTick;
+        this.maxComputationsPerTick = Math.max(1, maxComputationsPerTick);
     }
 
     @SuppressWarnings("DataFlowIssue")
@@ -255,7 +256,7 @@ public class CachedOverlayManager implements OverlayManager {
         if (MC.level == null || MC.player == null) return;
         if (!MC.level.hasChunk(sectionPos.x(), sectionPos.z())) return;
 
-        List<OverlayRendererBlockData> renderableBlocks = new ArrayList<>();
+        List<OverlayRendererBlockData> renderableBlocks = new ArrayList<>(256);
         BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
 
         int minX = SectionPos.sectionToBlockCoord(sectionPos.getX());
@@ -290,6 +291,7 @@ public class CachedOverlayManager implements OverlayManager {
     public void clear(SectionPos sectionPos) {
         if (cache.remove(sectionPos) != null || queuedSections.remove(sectionPos)) {
             importantSections.add(sectionPos);
+            requestSection(sectionPos);
             OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
         }
     }

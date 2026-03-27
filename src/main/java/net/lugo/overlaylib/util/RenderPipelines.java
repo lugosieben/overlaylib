@@ -18,7 +18,7 @@ public final class RenderPipelines {
             .withColorTargetState(new ColorTargetState(
                     BlendFunction.TRANSLUCENT
             ))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+                .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.TRIANGLES)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
             .build();

@@ -17,10 +17,21 @@ public class SimpleTextureOverlayRenderer extends OverlayRenderer {
     protected void addVertices(VertexConsumer buffer, float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
         TextureSection textureSection = data.textureSection().orElse(TextureSection.SINGULAR);
         float y = worldY + 1f + 1E-3f;
+        float r = data.r();
+        float g = data.g();
+        float b = data.b();
+        float uStart = textureSection.uStart();
+        float vStart = textureSection.vStart();
+        float uEnd = textureSection.uEnd();
+        float vEnd = textureSection.vEnd();
 
-        buffer.addVertex(worldX, y, worldZ).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uStart(), textureSection.vStart());
-        buffer.addVertex(worldX, y, worldZ + 1f).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uStart(), textureSection.vEnd());
-        buffer.addVertex(worldX + 1f, y, worldZ + 1f).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uEnd(), textureSection.vEnd());
-        buffer.addVertex(worldX + 1f, y, worldZ).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uEnd(), textureSection.vStart());
+        // Emit two triangles for the top face so we can use TRIANGLES mode without quad sorting.
+        buffer.addVertex(worldX, y, worldZ).setColor(r, g, b, 1f).setUv(uStart, vStart);
+        buffer.addVertex(worldX, y, worldZ + 1f).setColor(r, g, b, 1f).setUv(uStart, vEnd);
+        buffer.addVertex(worldX + 1f, y, worldZ + 1f).setColor(r, g, b, 1f).setUv(uEnd, vEnd);
+
+        buffer.addVertex(worldX, y, worldZ).setColor(r, g, b, 1f).setUv(uStart, vStart);
+        buffer.addVertex(worldX + 1f, y, worldZ + 1f).setColor(r, g, b, 1f).setUv(uEnd, vEnd);
+        buffer.addVertex(worldX + 1f, y, worldZ).setColor(r, g, b, 1f).setUv(uEnd, vStart);
     }
 }

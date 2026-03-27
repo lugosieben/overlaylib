@@ -44,7 +44,7 @@ public abstract class OverlayRenderer {
     private final Identifier textureId;
     private TextureSetup textureSetup;
 
-    private static final ByteBufferBuilder allocator = new ByteBufferBuilder(RenderType.SMALL_BUFFER_SIZE);
+    private static final ByteBufferBuilder allocator = new ByteBufferBuilder(RenderType.BIG_BUFFER_SIZE);
 
     private final Minecraft MC = Minecraft.getInstance();
 
@@ -135,7 +135,6 @@ public abstract class OverlayRenderer {
             if (OverlayTesting.shouldReport() && (++emptyBatchCounter % 120 == 0)) {
                 OverlayTesting.report("renderer", "skipped upload/draw because batch has no vertices");
             }
-            buffer = null;
             return;
         }
 

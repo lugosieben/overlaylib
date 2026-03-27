@@ -18,7 +18,7 @@ public class SimpleOverlayManager implements OverlayManager {
 
     @Override
     public OverlayRendererBlockData[] getSectionBlocks(SectionPos sectionPos) {
-        if (computeFunction == null) return null;
+
         List<OverlayRendererBlockData> renderableBlocks = new ArrayList<>();
         int minX = SectionPos.sectionToBlockCoord(sectionPos.getX());
         int minY = SectionPos.sectionToBlockCoord(sectionPos.getY());

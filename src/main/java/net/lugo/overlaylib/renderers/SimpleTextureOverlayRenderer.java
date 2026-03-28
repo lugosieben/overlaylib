@@ -17,20 +17,13 @@ public class SimpleTextureOverlayRenderer extends OverlayRenderer {
     @Override
     protected void addVertices(VertexConsumer buffer, float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
         TextureSection textureSection = data.textureSection().orElse(TextureSection.SINGULAR);
-        float y = worldY + 1f + 1E-3f;
-        float r = data.r();
-        float g = data.g();
-        float b = data.b();
-        float uStart = textureSection.uStart();
-        float vStart = textureSection.vStart();
-        float uEnd = textureSection.uEnd();
-        float vEnd = textureSection.vEnd();
 
         OverlayVertexHelper.squareFromTriags(
                 buffer,
-                worldX, worldZ, y, 1,
-                r, g, b,
-                uStart, vStart, uEnd, vEnd
+                worldX, worldZ, worldY + 1f + 1E-3f, 1,
+                data.r(), data.g(), data.b(),
+                textureSection.uStart(), textureSection.vStart(),
+                textureSection.uEnd(), textureSection.vEnd()
         );
     }
 }

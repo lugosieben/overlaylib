@@ -9,6 +9,7 @@ import net.lugo.overlaylib.util.TextureSection;
 import net.minecraft.resources.Identifier;
 
 public class SimpleTextureOverlayRenderer extends OverlayRenderer {
+    private static final float EPSILON = 1E-3f;
 
     public SimpleTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
         super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture, doIrisFlickerFix);
@@ -18,9 +19,13 @@ public class SimpleTextureOverlayRenderer extends OverlayRenderer {
     protected void addVertices(VertexConsumer buffer, float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
         TextureSection textureSection = data.textureSection().orElse(TextureSection.SINGULAR);
 
+        float y = worldY + 1f + EPSILON;
+
         OverlayVertexHelper.squareFromTriags(
                 buffer,
-                worldX, worldZ, worldY + 1f + 1E-3f, 1,
+                OverlayVertexHelper.FixedAxis.Y, y,
+                worldX, worldZ,
+                1f,
                 data.r(), data.g(), data.b(),
                 textureSection.uStart(), textureSection.vStart(),
                 textureSection.uEnd(), textureSection.vEnd()

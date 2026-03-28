@@ -23,10 +23,12 @@ public final class RenderPipelines {
             .buildSnippet();
 
     public static final RenderPipeline POSITION_TEX_COLOR_FOG_QUADS = RenderPipeline.builder(POSITION_TEX_COLOR_FOG)
+            .withLocation(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "pipeline/position_tex_color_fog_quads"))
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
             .build();
 
     public static final RenderPipeline POSITION_TEX_COLOR_FOG_TRIANGLES = RenderPipeline.builder(POSITION_TEX_COLOR_FOG)
+            .withLocation(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "pipeline/position_tex_color_fog_triangles"))
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.TRIANGLES)
             .build();
 

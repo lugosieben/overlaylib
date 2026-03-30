@@ -1,6 +1,5 @@
 package net.lugo.overlaylib.renderers;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.lugo.overlaylib.OverlayRenderer;
 import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.RenderPipelines;
@@ -16,7 +15,7 @@ public class SimpleTextureOverlayRenderer extends OverlayRenderer {
     }
 
     @Override
-    protected void addVertices(VertexConsumer buffer, float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
+    protected void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
         TextureSection textureSection = data.textureSection().orElse(TextureSection.SINGULAR);
 
         float y = worldY + 1f + EPSILON;

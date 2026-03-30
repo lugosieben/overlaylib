@@ -120,7 +120,7 @@ public abstract class OverlayRenderer {
             }
         }
 
-        addVertices(buffer, x - cameraX, y - cameraY, z - cameraZ, data);
+        addVertices(x - cameraX, y - cameraY, z - cameraZ, data);
         hasVertices = true;
         batchedBlocks++;
     }
@@ -225,5 +225,5 @@ public abstract class OverlayRenderer {
         builtBuffer.close();
     }
 
-    protected abstract void addVertices(VertexConsumer buffer, float worldX, float worldY, float worldZ, OverlayRendererBlockData blockData);
+    protected abstract void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData blockData);
 }

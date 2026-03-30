@@ -90,6 +90,13 @@ public class CachedOverlayManager implements OverlayManager {
             return entry.blocks();
         }
 
+        if (importantSections.remove(sectionPos) && compute(sectionPos)) {
+            CacheSectionPosEntry recomputedEntry = cache.get(sectionPos);
+            if (recomputedEntry != null) {
+                return recomputedEntry.blocks();
+            }
+        }
+
         requestSection(sectionPos);
         return null;
     }
@@ -252,9 +259,9 @@ public class CachedOverlayManager implements OverlayManager {
         }
     }
 
-    private void compute(SectionPos sectionPos) {
-        if (MC.level == null || MC.player == null) return;
-        if (!MC.level.hasChunk(sectionPos.x(), sectionPos.z())) return;
+    private boolean compute(SectionPos sectionPos) {
+        if (MC.level == null || MC.player == null) return false;
+        if (!MC.level.hasChunk(sectionPos.x(), sectionPos.z())) return false;
 
         List<OverlayRendererBlockData> renderableBlocks = new ArrayList<>(256);
         BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
@@ -286,14 +293,16 @@ public class CachedOverlayManager implements OverlayManager {
             OverlayTesting.report("cache", () -> "computeSummary section=" + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z()
                     + ", renderableBlocks=" + blockCount);
         }
+
+        return true;
     }
 
     public void clear(SectionPos sectionPos) {
-        if (cache.remove(sectionPos) != null || queuedSections.remove(sectionPos)) {
-            importantSections.add(sectionPos);
-            requestSection(sectionPos);
-            OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
-        }
+        cache.remove(sectionPos);
+        queuedSections.remove(sectionPos);
+        importantSections.add(sectionPos);
+        requestSection(sectionPos);
+        OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
     }
 
     public void clearFromBlockPos(BlockPos blockPos) {

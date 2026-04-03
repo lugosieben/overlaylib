@@ -36,7 +36,7 @@ public class SimpleOverlayManager implements OverlayManager {
                     OverlayRendererBlockData data = computeFunction.apply(mutableBlockPos);
                     if (data.shouldRender()) {
                         if (data.pos() == mutableBlockPos) {
-                            data = new OverlayRendererBlockData(mutableBlockPos.immutable(), data.r(), data.g(), data.b(), data.yOffset(), data.textureSection());
+                            data = new OverlayRendererBlockData(mutableBlockPos.immutable(), data.r(), data.g(), data.b(), data.yOffset(), data.textureSection(), data.textureRotation());
                         }
                         renderableBlocks.add(data);
                     }

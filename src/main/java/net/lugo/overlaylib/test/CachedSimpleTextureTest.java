@@ -5,6 +5,7 @@ import net.lugo.overlaylib.OverlayLib;
 import net.lugo.overlaylib.managers.CachedOverlayManager;
 import net.lugo.overlaylib.renderers.SimpleTextureOverlayRenderer;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.TextureSection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -13,7 +14,6 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 public class CachedSimpleTextureTest {
@@ -25,11 +25,17 @@ public class CachedSimpleTextureTest {
 			new TextureSection(TEST_SECTIONS, 0, 1),
 			new TextureSection(TEST_SECTIONS, 1, 1)
 	};
-	private static final List<Optional<TextureSection>> TEST_TEXTURE_OPTIONS = List.of(
-			Optional.of(TEST_TEXTURES[0]),
-			Optional.of(TEST_TEXTURES[1]),
-			Optional.of(TEST_TEXTURES[2]),
-			Optional.of(TEST_TEXTURES[3])
+	private static final List<TextureSection> TEST_TEXTURE_OPTIONS = List.of(
+			TEST_TEXTURES[0],
+			TEST_TEXTURES[1],
+			TEST_TEXTURES[2],
+			TEST_TEXTURES[3]
+	);
+	private static final List<OverlayVertexHelper.UVRotation> TEST_ROTATION_OPTIONS = List.of(
+			OverlayVertexHelper.UVRotation.NONE,
+			OverlayVertexHelper.UVRotation.CW_90,
+			OverlayVertexHelper.UVRotation.CW_180,
+			OverlayVertexHelper.UVRotation.CW_270
 	);
 	private static final String TEST_ID = "cached_simple_texture";
 	private static final CachedSimpleTextureTestInstance INSTANCE = new CachedSimpleTextureTestInstance();
@@ -64,7 +70,7 @@ public class CachedSimpleTextureTest {
 		float b = 0.35f + (((hash >> 12) & 0x3F) / 63.0f) * 0.65f;
 
 		int textureIndex = ((hash & 1) | (((hash >> 1) & 1) << 1));
-		return new OverlayRendererBlockData(pos, r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex));
+		return new OverlayRendererBlockData(pos, r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex), TEST_ROTATION_OPTIONS.get((hash >> 2) & 0x3));
 	}
 
 	private static final class CachedSimpleTextureTestInstance extends OverlayTesting.OverlayTest {

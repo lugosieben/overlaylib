@@ -4,7 +4,6 @@ import net.lugo.overlaylib.OverlayRenderer;
 import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.RenderPipelines;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
-import net.lugo.overlaylib.util.TextureSection;
 import net.minecraft.resources.Identifier;
 
 public class SimpleTextureOverlayRenderer extends OverlayRenderer {
@@ -16,18 +15,16 @@ public class SimpleTextureOverlayRenderer extends OverlayRenderer {
 
     @Override
     protected void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
-        TextureSection textureSection = data.textureSection().orElse(TextureSection.SINGULAR);
-
         float y = worldY + 1f + EPSILON;
 
         OverlayVertexHelper.squareFromTriags(
                 buffer,
                 OverlayVertexHelper.FixedAxis.Y, y,
                 worldX, worldZ,
-                1f,
                 data.r(), data.g(), data.b(),
-                textureSection.uStart(), textureSection.vStart(),
-                textureSection.uEnd(), textureSection.vEnd()
+                data.textureSection().uStart(), data.textureSection().vStart(),
+                data.textureSection().uEnd(), data.textureSection().vEnd(),
+                data.textureRotation()
         );
     }
 }

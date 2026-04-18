@@ -1,6 +1,7 @@
 package net.lugo.overlaylib.util;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.core.Direction;
 
 public class OverlayVertexHelper {
     public enum FixedAxis {
@@ -13,7 +14,17 @@ public class OverlayVertexHelper {
         NONE,
         CW_90,
         CW_180,
-        CW_270
+        CW_270;
+
+        public static UVRotation of(Direction direction) {
+            return switch (direction) {
+                case NORTH -> NONE;
+                case EAST -> CW_90;
+                case SOUTH -> CW_180;
+                case WEST -> CW_270;
+                default -> throw new IllegalArgumentException("Invalid direction for UV rotation: " + direction);
+            };
+        }
     }
 
     public static float[] rotateUV(

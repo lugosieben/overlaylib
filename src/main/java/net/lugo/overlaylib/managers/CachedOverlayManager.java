@@ -275,7 +275,13 @@ public class CachedOverlayManager implements OverlayManager {
             for (int y = 0; y < 16; y++) {
                 for (int z = 0; z < 16; z++) {
                     mutableBlockPos.set(minX + x, minY + y, minZ + z);
-                    OverlayRendererBlockData data = computeFunction.apply(mutableBlockPos);
+                    OverlayRendererBlockData data;
+                    try {
+                        data = computeFunction.apply(mutableBlockPos);
+                    } catch (Exception e) {
+                        OverlayLib.LOGGER.error("Error computing block data at {}: {}. This is most likely an issue with a mod using OverlayLib, not OverlayLib itself.", mutableBlockPos, e.getMessage(), e);
+                        continue;
+                    }
                     if (data.shouldRender()) {
                         if (data.pos() == mutableBlockPos) {
                             data = new OverlayRendererBlockData(mutableBlockPos.immutable(), data.r(), data.g(), data.b(), data.yOffset(), data.textureSection(),data.textureRotation());

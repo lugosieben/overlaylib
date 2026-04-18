@@ -10,7 +10,7 @@ import net.lugo.overlaylib.OverlayLib;
 import net.minecraft.resources.Identifier;
 
 public final class RenderPipelines {
-    public static final RenderPipeline POSITION_TEX_COLOR_FOG = RenderPipeline.builder(net.minecraft.client.renderer.RenderPipelines.MATRICES_FOG_SNIPPET)
+    public static final RenderPipeline.Snippet POSITION_TEX_COLOR_FOG = RenderPipeline.builder(net.minecraft.client.renderer.RenderPipelines.MATRICES_FOG_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "pipeline/position_tex_color_fog"))
             .withVertexShader(ShaderHelper.POSITION_TEX_COLOR_FOG_VERTEX_SHADER)
             .withFragmentShader(ShaderHelper.POSITION_TEX_COLOR_FOG_FRAGMENT_SHADER)
@@ -18,12 +18,22 @@ public final class RenderPipelines {
             .withColorTargetState(new ColorTargetState(
                     BlendFunction.TRANSLUCENT
             ))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
+            .buildSnippet();
+
+    public static final RenderPipeline POSITION_TEX_COLOR_FOG_QUADS = RenderPipeline.builder(POSITION_TEX_COLOR_FOG)
+            .withLocation(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "pipeline/position_tex_color_fog_quads"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .build();
+
+    public static final RenderPipeline POSITION_TEX_COLOR_FOG_TRIANGLES = RenderPipeline.builder(POSITION_TEX_COLOR_FOG)
+            .withLocation(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "pipeline/position_tex_color_fog_triangles"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.TRIANGLES)
             .build();
 
     public static void registerWithIris() {
-        IrisUtil.assignPipeline(POSITION_TEX_COLOR_FOG, IrisPipeline.TEXTURED);
+        IrisUtil.assignPipeline(POSITION_TEX_COLOR_FOG_QUADS, IrisPipeline.TEXTURED);
+        IrisUtil.assignPipeline(POSITION_TEX_COLOR_FOG_TRIANGLES, IrisPipeline.TEXTURED);
     }
 }

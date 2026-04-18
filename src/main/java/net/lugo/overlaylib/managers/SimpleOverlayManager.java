@@ -18,17 +18,26 @@ public class SimpleOverlayManager implements OverlayManager {
 
     @Override
     public OverlayRendererBlockData[] getSectionBlocks(SectionPos sectionPos) {
-        if (computeFunction == null) return null;
+        return getSectionBlocks(sectionPos.x(), sectionPos.y(), sectionPos.z());
+    }
+
+    @Override
+    public OverlayRendererBlockData[] getSectionBlocks(int sectionX, int sectionY, int sectionZ) {
         List<OverlayRendererBlockData> renderableBlocks = new ArrayList<>();
-        int minX = SectionPos.sectionToBlockCoord(sectionPos.getX());
-        int minY = SectionPos.sectionToBlockCoord(sectionPos.getY());
-        int minZ = SectionPos.sectionToBlockCoord(sectionPos.getZ());
+        BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
+
+        int minX = SectionPos.sectionToBlockCoord(sectionX);
+        int minY = SectionPos.sectionToBlockCoord(sectionY);
+        int minZ = SectionPos.sectionToBlockCoord(sectionZ);
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 16; y++) {
                 for (int z = 0; z < 16; z++) {
-                    BlockPos blockPos = new BlockPos(minX + x, minY + y, minZ + z);
-                    OverlayRendererBlockData data = computeFunction.apply(blockPos);
+                    mutableBlockPos.set(minX + x, minY + y, minZ + z);
+                    OverlayRendererBlockData data = computeFunction.apply(mutableBlockPos);
                     if (data.shouldRender()) {
+                        if (data.pos() == mutableBlockPos) {
+                            data = new OverlayRendererBlockData(mutableBlockPos.immutable(), data.r(), data.g(), data.b(), data.yOffset(), data.textureSection(), data.textureRotation());
+                        }
                         renderableBlocks.add(data);
                     }
                 }

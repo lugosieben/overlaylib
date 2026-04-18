@@ -1,37 +1,30 @@
 package net.lugo.overlaylib.renderers;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.lugo.overlaylib.OverlayRenderer;
+import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.RenderPipelines;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
-import net.lugo.overlaylib.util.TextureSection;
 import net.minecraft.resources.Identifier;
-import org.joml.Matrix4f;
 
 public class SimpleTextureOverlayRenderer extends OverlayRenderer {
+    private static final float EPSILON = 1E-3f;
 
     public SimpleTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
-        super(RenderPipelines.POSITION_TEX_COLOR_FOG, texture, doIrisFlickerFix);
+        super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture, doIrisFlickerFix);
     }
 
     @Override
-    protected void onStartBatch() {
+    protected void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
+        float y = worldY + 1f + EPSILON;
 
-    }
-
-    @Override
-    protected void addVertices(VertexConsumer buffer, Matrix4f positionMatrix, OverlayRendererBlockData data) {
-        TextureSection textureSection = data.textureSection().orElse(TextureSection.SINGULAR);
-        positionMatrix.translate(0f, 1E-3f, 0f);
-
-        buffer.addVertex(positionMatrix, 0, 1, 0).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uStart(), textureSection.vStart());
-        buffer.addVertex(positionMatrix, 0, 1, 1).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uStart(), textureSection.vEnd());
-        buffer.addVertex(positionMatrix, 1, 1, 1).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uEnd(), textureSection.vEnd());
-        buffer.addVertex(positionMatrix, 1, 1, 0).setColor(data.r(), data.g(), data.b(), 1f).setUv(textureSection.uEnd(), textureSection.vStart());
-    }
-
-    @Override
-    protected void onEndBatch() {
-
+        OverlayVertexHelper.squareFromTriags(
+                buffer,
+                OverlayVertexHelper.FixedAxis.Y, y,
+                worldX, worldZ,
+                data.r(), data.g(), data.b(),
+                data.textureSection().uStart(), data.textureSection().vStart(),
+                data.textureSection().uEnd(), data.textureSection().vEnd(),
+                data.textureRotation()
+        );
     }
 }

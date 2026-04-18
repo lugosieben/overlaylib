@@ -11,11 +11,13 @@ import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.*;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.lugo.overlaylib.test.OverlayTesting;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -30,8 +32,6 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 public abstract class OverlayRenderer {
-    private PoseStack poseStack;
-
     private final RenderPipeline renderPipeline;
 
     public BufferBuilder buffer;
@@ -44,12 +44,25 @@ public abstract class OverlayRenderer {
     private final Identifier textureId;
     private TextureSetup textureSetup;
 
-    private static final ByteBufferBuilder allocator = new ByteBufferBuilder(RenderType.SMALL_BUFFER_SIZE);
+    private static final ByteBufferBuilder allocator = new ByteBufferBuilder(RenderType.BIG_BUFFER_SIZE);
 
     private final Minecraft MC = Minecraft.getInstance();
 
     private boolean batchStarted = false;
     private boolean hasVertices = false;
+    private int batchedBlocks;
+    private int uploadSummaryCounter;
+    private int emptyBatchCounter;
+    private int skippedDrawCounter;
+    private int playerBlockX;
+    private int playerBlockY;
+    private int playerBlockZ;
+    private float cameraX;
+    private float cameraY;
+    private float cameraZ;
+
+    private static final float IRIS_OFFSET_Y = 3E-2f;
+    private static final double NEARBY_BLOCK_DISTANCE_SQ = 12d * 12d;
 
     private final boolean doIrisFlickerFix;
 
@@ -68,49 +81,60 @@ public abstract class OverlayRenderer {
             textureSetup = TextureSetup.singleTexture(gpuTextureView, gpuSampler);
         }
 
-        poseStack = context.poseStack();
         Vec3 camPos = context.levelState().cameraRenderState.pos;
+        cameraX = (float) camPos.x;
+        cameraY = (float) camPos.y;
+        cameraZ = (float) camPos.z;
 
-        getPoseStack().pushPose();
-        getPoseStack().translate((float) -camPos.x, (float) -camPos.y, (float) -camPos.z);
+        if (MC.player != null) {
+            playerBlockX = MC.player.getBlockX();
+            playerBlockY = MC.player.getBlockY();
+            playerBlockZ = MC.player.getBlockZ();
+        }
 
         hasVertices = false;
+        batchedBlocks = 0;
         if (buffer == null) {
             buffer = new BufferBuilder(allocator, renderPipeline.getVertexFormatMode(),  renderPipeline.getVertexFormat());
         }
 
         batchStarted = true;
-        onStartBatch();
     }
 
     public final void addBlock(OverlayRendererBlockData data) {
-        if (!batchStarted || MC.player == null) return;
+        if (!batchStarted) return;
+        if (!data.shouldRender()) return;
 
-        boolean isNearby = data.pos().closerThan(MC.player.blockPosition(), 12d);
+        BlockPos pos = data.pos();
 
-        getPoseStack().pushPose();
-        getPoseStack().translate(data.pos().getX(), data.pos().getY() + data.yOffset(), data.pos().getZ());
+        float x = pos.getX();
+        float y = pos.getY() + data.yOffset();
+        float z = pos.getZ();
 
-        Matrix4f positionMatrix = getPoseStack().last().pose();
-        if (!isNearby && doIrisFlickerFix) {
-            getPoseStack().translate(0, 3E-2, 0);
+        if (doIrisFlickerFix) {
+            double dx = pos.getX() - playerBlockX;
+            double dy = pos.getY() - playerBlockY;
+            double dz = pos.getZ() - playerBlockZ;
+            if ((dx * dx + dy * dy + dz * dz) >= NEARBY_BLOCK_DISTANCE_SQ) {
+                y += IRIS_OFFSET_Y;
+            }
         }
 
-        addVertices(buffer, positionMatrix, data);
+        addVertices(x - cameraX, y - cameraY, z - cameraZ, data);
         hasVertices = true;
-        getPoseStack().popPose();
+        batchedBlocks++;
     }
 
     public final void endBatch() {
         if (!batchStarted) return;
-        getPoseStack().popPose();
         batchStarted = false;
-        onEndBatch();
     }
 
     public final void uploadThenDraw() {
         if (!hasVertices || buffer == null) {
-            buffer = null;
+            if (OverlayTesting.shouldReport() && (++emptyBatchCounter % 120 == 0)) {
+                OverlayTesting.report("renderer", "skipped upload/draw because batch has no vertices");
+            }
             return;
         }
 
@@ -120,6 +144,14 @@ public abstract class OverlayRenderer {
         MeshData builtBuffer = buffer.buildOrThrow();
         MeshData.DrawState drawParams = builtBuffer.drawState();
         VertexFormat format = drawParams.format();
+
+        if (OverlayTesting.shouldReport() && (++uploadSummaryCounter % 120 == 0)) {
+            int blockCount = batchedBlocks;
+            int vertexCount = drawParams.vertexCount();
+            int indexCount = drawParams.indexCount();
+            OverlayTesting.report("renderer", () -> "batchSummary blocks=" + blockCount
+                + ", vertices=" + vertexCount + ", indices=" + indexCount);
+        }
 
         profiler.popPush("upload");
         GpuBuffer vertices = upload(builtBuffer, drawParams, format);
@@ -155,6 +187,10 @@ public abstract class OverlayRenderer {
         VertexFormat.IndexType indexType;
 
         if (MC.getMainRenderTarget().getColorTextureView() == null) {
+            if (OverlayTesting.shouldReport() && (++skippedDrawCounter % 120 == 0)) {
+                OverlayTesting.report("renderer", "skipped draw because main color target is null");
+            }
+            builtBuffer.close();
             return;
         }
 
@@ -189,13 +225,5 @@ public abstract class OverlayRenderer {
         builtBuffer.close();
     }
 
-    protected abstract void onStartBatch();
-
-    protected abstract void addVertices(VertexConsumer buffer, Matrix4f positionMatrix, OverlayRendererBlockData blockData);
-
-    protected abstract void onEndBatch();
-
-    protected PoseStack getPoseStack() {
-        return poseStack;
-    }
+    protected abstract void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData blockData);
 }

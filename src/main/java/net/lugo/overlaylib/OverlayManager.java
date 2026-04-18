@@ -10,6 +10,8 @@ public interface OverlayManager {
         return getSectionBlocks(SectionPos.of(sectionX, sectionY, sectionZ));
     }
 
+    default void prepareSection(SectionPos sectionPos) {}
+
     default void setActive(boolean active) {}
 
     default void setChunkScanRadius(int radius) {}

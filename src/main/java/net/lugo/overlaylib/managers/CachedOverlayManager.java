@@ -71,7 +71,7 @@ public class CachedOverlayManager implements OverlayManager {
 
     public record CacheSectionPosEntry(SectionPos pos, OverlayRendererBlockData[] blocks, long lastAccessTime) { }
 
-    public void requestSection(SectionPos sectionPos) {
+    public void prepareSection(SectionPos sectionPos) {
         if (queuedSections.add(sectionPos)) {
             computeQueue.offer(sectionPos);
         }
@@ -97,7 +97,7 @@ public class CachedOverlayManager implements OverlayManager {
             }
         }
 
-        requestSection(sectionPos);
+        prepareSection(sectionPos);
         return null;
     }
 

@@ -211,8 +211,9 @@ public class CachedOverlayManager implements OverlayManager {
         int requiredSections = getRequiredSections(radius);
 
         if (requiredSections > maxCacheSize) {
+            int oldMaxCacheSize = maxCacheSize;
             updateMaxCacheSize(requiredSections);
-            OverlayLib.LOGGER.info("Resizing maxCacheSize, total sections * 2 ({}) is higher than current limit {}. New size is {}", requiredSections, maxCacheSize, requiredSections);
+            OverlayLib.LOGGER.info("Resizing maxCacheSize, total sections * 2 ({}) is higher than current limit {}. New size is {}", requiredSections, oldMaxCacheSize, requiredSections);
             OverlayTesting.report("cache", () -> "resized max cache to " + requiredSections + " for radius=" + radius);
         }
     }
@@ -297,17 +298,30 @@ public class CachedOverlayManager implements OverlayManager {
         return true;
     }
 
-    public void clear(SectionPos sectionPos) {
-        cache.remove(sectionPos);
-        queuedSections.remove(sectionPos);
-        importantSections.add(sectionPos);
-        requestSection(sectionPos);
-        OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
+    public boolean clear(SectionPos sectionPos) {
+        boolean removedCached = cache.remove(sectionPos) != null;
+        boolean removedQueued = queuedSections.remove(sectionPos);
+        if (removedCached || removedQueued) {
+            OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
+            return true;
+        }
+        return false;
     }
 
-    public void clearFromBlockPos(BlockPos blockPos) {
+    public void refresh(SectionPos sectionPos) {
+        if (clear(sectionPos)) {
+            importantSections.add(sectionPos);
+        }
+    }
+
+    public boolean clear(BlockPos blockPos) {
         SectionPos sectionPos = SectionPos.of(blockPos);
-        clear(sectionPos);
+        return clear(sectionPos);
+    }
+
+    public void refresh(BlockPos blockPos) {
+        SectionPos sectionPos = SectionPos.of(blockPos);
+        refresh(sectionPos);
     }
 
     public void clearAll() {

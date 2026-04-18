@@ -125,7 +125,7 @@ public class CachedSimpleTextureTest {
 
 			CachedOverlayManager manager = getCachedOverlayManager();
 			if (manager == null) return false;
-			manager.clearFromBlockPos(MC.player.blockPosition());
+			manager.clear(MC.player.blockPosition());
 			report(() -> "clear-playerpos executed at " + MC.player.blockPosition().toShortString());
 			return true;
 		}

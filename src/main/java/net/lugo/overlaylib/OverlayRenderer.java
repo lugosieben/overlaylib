@@ -72,7 +72,7 @@ public abstract class OverlayRenderer {
         this.doIrisFlickerFix = doIrisFlickerFix;
     }
 
-    public final void startBatch(LevelRenderContext context) {
+    public void startBatch(LevelRenderContext context) {
         if (batchStarted) return;
 
         if (textureSetup == null) {

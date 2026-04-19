@@ -1,30 +1,12 @@
 package net.lugo.overlaylib.util;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.core.Direction;
 
 public class OverlayVertexHelper {
     public enum FixedAxis {
         X,
         Y,
         Z
-    }
-
-    public enum UVRotation {
-        NONE,
-        CW_90,
-        CW_180,
-        CW_270;
-
-        public static UVRotation of(Direction direction) {
-            return switch (direction) {
-                case NORTH -> NONE;
-                case EAST -> CW_90;
-                case SOUTH -> CW_180;
-                case WEST -> CW_270;
-                default -> throw new IllegalArgumentException("Invalid direction for UV rotation: " + direction);
-            };
-        }
     }
 
     public static float[] rotateUV(
@@ -34,9 +16,9 @@ public class OverlayVertexHelper {
     ) {
         return switch (rotation) {
             case NONE -> new float[]{uStart, vStart, uEnd, vEnd};
-            case CW_90 -> new float[]{uEnd, vStart, uStart, vEnd};
+            case CW_90 -> new float[]{uStart, vEnd, uEnd, vStart};
             case CW_180 -> new float[]{uEnd, vEnd, uStart, vStart};
-            case CW_270 -> new float[]{uStart, vEnd, uEnd, vStart};
+            case CW_270 -> new float[]{uEnd, vStart, uStart, vEnd};
         };
     }
 
@@ -62,8 +44,14 @@ public class OverlayVertexHelper {
         float[] uv = rotateUV(uStart, vStart, uEnd, vEnd, rotation);
 
         vertex(buffer, x1, y1, z1, r, g, b, uv[0], uv[1]);
-        vertex(buffer, x2, y2, z2, r, g, b, uv[0], uv[3]);
-        vertex(buffer, x3, y3, z3, r, g, b, uv[2], uv[3]);
+        if (rotation == UVRotation.CW_90 || rotation == UVRotation.CW_270) {
+            // 90/270 needs swapped edges to prevent mirroring
+            vertex(buffer, x2, y2, z2, r, g, b, uv[2], uv[1]);
+            vertex(buffer, x3, y3, z3, r, g, b, uv[2], uv[3]);
+        } else {
+            vertex(buffer, x2, y2, z2, r, g, b, uv[0], uv[3]);
+            vertex(buffer, x3, y3, z3, r, g, b, uv[2], uv[3]);
+        }
     }
 
     public static void rectFromTriags(

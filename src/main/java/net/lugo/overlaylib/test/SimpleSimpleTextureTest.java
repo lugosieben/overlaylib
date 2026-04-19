@@ -5,7 +5,6 @@ import net.lugo.overlaylib.OverlayLib;
 import net.lugo.overlaylib.managers.SimpleOverlayManager;
 import net.lugo.overlaylib.renderers.SimpleTextureOverlayRenderer;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
-import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.TextureSection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -29,12 +28,6 @@ public class SimpleSimpleTextureTest {
 			TEST_TEXTURES[1],
 			TEST_TEXTURES[2],
 			TEST_TEXTURES[3]
-	);
-	private static final List<OverlayVertexHelper.UVRotation> TEST_ROTATION_OPTIONS = List.of(
-			OverlayVertexHelper.UVRotation.NONE,
-			OverlayVertexHelper.UVRotation.CW_90,
-			OverlayVertexHelper.UVRotation.CW_180,
-			OverlayVertexHelper.UVRotation.CW_270
 	);
 	private static final String TEST_ID = "simple_simple_texture";
 	private static final SimpleSimpleTextureTestInstance INSTANCE = new SimpleSimpleTextureTestInstance();
@@ -65,7 +58,7 @@ public class SimpleSimpleTextureTest {
 		float b = 0.35f + ((hash & 0x3F) / 63.0f) * 0.65f;
 
 		int textureIndex = ((hash & 1) | (((hash >> 1) & 1) << 1));
-		return new OverlayRendererBlockData(pos, r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex), TEST_ROTATION_OPTIONS.get((hash >> 2) & 0x3));
+		return new OverlayRendererBlockData(pos, r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex));
 	}
 
 	private static final class SimpleSimpleTextureTestInstance extends OverlayTesting.OverlayTest {

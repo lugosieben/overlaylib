@@ -4,6 +4,7 @@ import net.lugo.overlaylib.OverlayRenderer;
 import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.RenderPipelines;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.lugo.overlaylib.util.UVRotation;
 import net.minecraft.resources.Identifier;
 
 public class SimpleTextureOverlayRenderer extends OverlayRenderer {
@@ -24,7 +25,7 @@ public class SimpleTextureOverlayRenderer extends OverlayRenderer {
                 data.r(), data.g(), data.b(),
                 data.textureSection().uStart(), data.textureSection().vStart(),
                 data.textureSection().uEnd(), data.textureSection().vEnd(),
-                data.textureRotation()
+                UVRotation.NONE
         );
     }
 }

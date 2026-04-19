@@ -2,9 +2,9 @@ package net.lugo.overlaylib.util;
 
 import net.minecraft.core.BlockPos;
 
-public record OverlayRendererBlockData(BlockPos pos, float r, float g, float b, float yOffset, TextureSection textureSection, OverlayVertexHelper.UVRotation textureRotation) {
+public record OverlayRendererBlockData(BlockPos pos, float r, float g, float b, float yOffset, TextureSection textureSection) {
     public OverlayRendererBlockData(BlockPos pos, float r, float g, float b, float yOffset) {
-        this(pos, r, g, b, yOffset, TextureSection.SINGULAR, OverlayVertexHelper.UVRotation.NONE);
+        this(pos, r, g, b, yOffset, TextureSection.SINGULAR);
     }
     public boolean shouldRender() {
         return pos != null;

@@ -1,7 +1,6 @@
 package net.lugo.overlaylib.renderers;
 
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.lugo.overlaylib.OverlayLib;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.lugo.overlaylib.util.OverlayVertexHelper;
 import net.lugo.overlaylib.util.UVRotation;
@@ -22,7 +21,6 @@ public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRendere
         super.startBatch(context);
         if (MC.getCameraEntity() != null) {
             uvRotation = UVRotation.of(MC.getCameraEntity().getDirection());
-            OverlayLib.LOGGER.info("Camera direction: {}, UV rotation: {}", MC.getCameraEntity().getDirection(), uvRotation);
         }
     }
 

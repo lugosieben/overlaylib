@@ -4,10 +4,12 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.lugo.overlaylib.test.OverlayTesting;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Overlay {
     private static final Minecraft MC = Minecraft.getInstance();
@@ -75,23 +77,19 @@ public class Overlay {
         int playerChunkX = SectionPos.blockToSectionCoord(MC.player.getBlockX());
         int playerChunkZ = SectionPos.blockToSectionCoord(MC.player.getBlockZ());
         int effectiveChunkRadius = Math.min(chunkScanRadius, MC.options.getEffectiveRenderDistance() + 1);
-        int radiusSquared = effectiveChunkRadius * effectiveChunkRadius;
-        var visibleSections = MC.levelRenderer.getVisibleSections();
+        int minSectionY = MC.level.getMinSectionY();
+        int maxSectionY = MC.level.getMaxSectionY();
 
-        for (var renderSection : visibleSections) {
-            BlockPos renderOrigin = renderSection.getRenderOrigin();
-            int sectionX = SectionPos.blockToSectionCoord(renderOrigin.getX());
-            int sectionY = SectionPos.blockToSectionCoord(renderOrigin.getY());
-            int sectionZ = SectionPos.blockToSectionCoord(renderOrigin.getZ());
 
-            int dx = sectionX - playerChunkX;
-            int dz = sectionZ - playerChunkZ;
-            if (dx * dx + dz * dz > radiusSquared) {
-                continue;
-            }
+        List<SectionPos> sectionsInRadius = MC.levelRenderer.getVisibleSections().stream().map((s) -> SectionPos.of(s.getSectionNode())).toList();
+        if (sectionsInRadius.isEmpty()) {
+            // Sodium replaces the LevelRenderer so we have to get the sections another way
+            sectionsInRadius = getSectionsInRadius(playerChunkX, playerChunkZ, effectiveChunkRadius, minSectionY, maxSectionY);
+        }
 
+        for (SectionPos sectionPos : sectionsInRadius) {
             consideredSections++;
-            OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(SectionPos.of(renderOrigin));
+            OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
             if (blocks == null) {
                 if (reportThisFrame) {
                     missingSections++;
@@ -110,10 +108,28 @@ public class Overlay {
             int finalRenderedBlocks = renderedBlocks;
             int finalMissingSections = missingSections;
             int finalConsideredSections = consideredSections;
-            OverlayTesting.report("overlay", () -> "frameSummary visibleSections=" + visibleSections.size()
-                    + ", consideredSections=" + finalConsideredSections
+            OverlayTesting.report("overlay", () -> "frameSummary consideredSections=" + finalConsideredSections
                     + ", renderedBlocks=" + finalRenderedBlocks + ", pendingSections=" + finalMissingSections);
         }
+    }
+
+    private List<SectionPos> getSectionsInRadius(int centerChunkX, int centerChunkZ, int radius, int minSectionY, int maxSectionY) {
+        List<SectionPos> sections = new ArrayList<>();
+        int radiusSquared = radius * radius;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (dx * dx + dz * dz > radiusSquared) {
+                    continue;
+                }
+
+                int sectionX = centerChunkX + dx;
+                int sectionZ = centerChunkZ + dz;
+                for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
+                    sections.add(SectionPos.of(sectionX, sectionY, sectionZ));
+                }
+            }
+        }
+        return sections;
     }
 
     private void prepareSectionsIfNeeded() {
@@ -141,19 +157,8 @@ public class Overlay {
         lastPreparedMinSectionY = minSectionY;
         lastPreparedMaxSectionY = maxSectionY;
 
-        int radiusSquared = effectiveChunkRadius * effectiveChunkRadius;
-        for (int dx = -effectiveChunkRadius; dx <= effectiveChunkRadius; dx++) {
-            for (int dz = -effectiveChunkRadius; dz <= effectiveChunkRadius; dz++) {
-                if (dx * dx + dz * dz > radiusSquared) {
-                    continue;
-                }
-
-                int sectionX = playerChunkX + dx;
-                int sectionZ = playerChunkZ + dz;
-                for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
-                    overlayManager.prepareSection(SectionPos.of(sectionX, sectionY, sectionZ));
-                }
-            }
+        for (SectionPos sectionPos : getSectionsInRadius(playerChunkX, playerChunkZ, effectiveChunkRadius, minSectionY, maxSectionY)) {
+            overlayManager.prepareSection(sectionPos);
         }
     }
 

@@ -81,7 +81,10 @@ public class Overlay {
         int maxSectionY = MC.level.getMaxSectionY();
 
 
-        List<SectionPos> sectionsInRadius = MC.levelRenderer.getVisibleSections().stream().map((s) -> SectionPos.of(s.getSectionNode())).toList();
+        List<SectionPos> sectionsInRadius = MC.levelRenderer.getVisibleSections().stream()
+                .map((s) -> SectionPos.of(s.getSectionNode()))
+                .filter((s) -> (s.getX() - playerChunkX) * (s.getX() - playerChunkX) + (s.getZ() - playerChunkZ) * (s.getZ() - playerChunkZ) <= effectiveChunkRadius*effectiveChunkRadius)
+                .toList();
         if (sectionsInRadius.isEmpty()) {
             // Sodium replaces the LevelRenderer so we have to get the sections another way
             sectionsInRadius = getSectionsInRadius(playerChunkX, playerChunkZ, effectiveChunkRadius, minSectionY, maxSectionY);

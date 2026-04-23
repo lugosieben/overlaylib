@@ -72,6 +72,7 @@ public class SimpleSimpleTextureTest {
 				testOverlay = new Overlay(
 						new SimpleTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png"), true),
 						6,
+						Overlay.CHUNK_SCAN_RADIUS_VERTICAL_MAX,
 						manager
 				);
 				report("created overlay and simple manager");

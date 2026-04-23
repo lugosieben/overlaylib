@@ -1,6 +1,7 @@
 package net.lugo.overlaylib.managers;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.lugo.overlaylib.Overlay;
 import net.lugo.overlaylib.OverlayLib;
 import net.lugo.overlaylib.OverlayManager;
 import net.lugo.overlaylib.test.OverlayTesting;
@@ -45,6 +46,8 @@ public class CachedOverlayManager implements OverlayManager {
 
     private int maxCacheSize;
     private int maxComputationsPerTick;
+    private int chunkScanRadius;
+    private int chunkScanRadiusVertical = Overlay.CHUNK_SCAN_RADIUS_VERTICAL_MAX;
     private boolean active;
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
     private long lastReprioritizeNanos;
@@ -199,22 +202,36 @@ public class CachedOverlayManager implements OverlayManager {
     public void setActive(boolean active) {
         this.active = active;
         clearAll();
+        if (active) {
+            updateCacheSizing();
+        }
         OverlayTesting.report("cache", () -> "setActive=" + active);
     }
 
     @Override
     public void setChunkScanRadius(int radius) {
+        this.chunkScanRadius = radius;
+        updateCacheSizing();
+    }
+
+    @Override
+    public void setChunkScanRadiusVertical(int radius) {
+        this.chunkScanRadiusVertical = radius;
+        updateCacheSizing();
+    }
+
+    private void updateCacheSizing() {
         if (MC.level == null) return;
 
         if (!active) return;
 
-        int requiredSections = getRequiredSections(radius);
+        int requiredSections = getRequiredSections(chunkScanRadius, chunkScanRadiusVertical);
 
         if (requiredSections > maxCacheSize) {
             int oldMaxCacheSize = maxCacheSize;
             updateMaxCacheSize(requiredSections);
             OverlayLib.LOGGER.info("Resizing maxCacheSize, total sections * 2 ({}) is higher than current limit {}. New size is {}", requiredSections, oldMaxCacheSize, requiredSections);
-            OverlayTesting.report("cache", () -> "resized max cache to " + requiredSections + " for radius=" + radius);
+            OverlayTesting.report("cache", () -> "resized max cache to " + requiredSections + " for radius=" + chunkScanRadius + ", verticalRadius=" + chunkScanRadiusVertical);
         }
     }
 
@@ -223,7 +240,7 @@ public class CachedOverlayManager implements OverlayManager {
     }
 
     @SuppressWarnings("DataFlowIssue")
-    private static int getRequiredSections(int chunkScanRadius) {
+    private static int getRequiredSections(int chunkScanRadius, int chunkScanRadiusVertical) {
         int horizontalChunks = 0;
         for (int dx = -chunkScanRadius; dx <= chunkScanRadius; dx++) {
             for (int dz = -chunkScanRadius; dz <= chunkScanRadius; dz++) {
@@ -232,7 +249,10 @@ public class CachedOverlayManager implements OverlayManager {
                 }
             }
         }
-        int verticalSections = MC.level.getMaxSectionY() - MC.level.getMinSectionY() + 1;
+        int worldVerticalSections = MC.level.getMaxSectionY() - MC.level.getMinSectionY() + 1;
+        int verticalSections = chunkScanRadiusVertical == Overlay.CHUNK_SCAN_RADIUS_VERTICAL_MAX
+                ? worldVerticalSections
+                : Math.min(worldVerticalSections, chunkScanRadiusVertical * 2 + 1);
         int totalSections = horizontalChunks * verticalSections;
         return totalSections * 2;
     }

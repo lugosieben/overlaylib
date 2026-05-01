@@ -30,6 +30,8 @@ import org.lwjgl.system.MemoryUtil;
 import java.util.Objects;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class OverlayRenderer {
     private final RenderPipeline renderPipeline;
@@ -43,6 +45,8 @@ public abstract class OverlayRenderer {
 
     private final Identifier textureId;
     private TextureSetup textureSetup;
+
+    private static final Set<OverlayRenderer> ACTIVE_RENDERERS = ConcurrentHashMap.newKeySet();
 
     private static final ByteBufferBuilder allocator = new ByteBufferBuilder(RenderType.BIG_BUFFER_SIZE);
 
@@ -70,6 +74,13 @@ public abstract class OverlayRenderer {
         this.renderPipeline = renderPipeline;
         this.textureId = texture;
         this.doIrisFlickerFix = doIrisFlickerFix;
+        ACTIVE_RENDERERS.add(this);
+    }
+
+    public static void resetTextureSetups() {
+        for (OverlayRenderer renderer : ACTIVE_RENDERERS) {
+            renderer.textureSetup = null;
+        }
     }
 
     public void startBatch(LevelRenderContext context) {

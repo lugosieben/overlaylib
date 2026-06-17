@@ -1,9 +1,9 @@
 package net.lugo.overlaylib;
 
+import com.mojang.blaze3d.IndexType;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
@@ -27,10 +27,7 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
-import java.util.Objects;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class OverlayRenderer {
@@ -106,7 +103,7 @@ public abstract class OverlayRenderer {
         hasVertices = false;
         batchedBlocks = 0;
         if (buffer == null) {
-            buffer = new BufferBuilder(allocator, renderPipeline.getVertexFormatMode(),  renderPipeline.getVertexFormat());
+            buffer = new BufferBuilder(allocator, renderPipeline.getPrimitiveTopology(), Objects.requireNonNull(renderPipeline.getVertexFormatBinding(0)));
         }
 
         batchStarted = true;
@@ -165,16 +162,16 @@ public abstract class OverlayRenderer {
         }
 
         profiler.popPush("upload");
-        GpuBuffer vertices = upload(builtBuffer, drawParams, format);
+        GpuBufferSlice slice = upload(builtBuffer, drawParams, format);
         profiler.popPush("draw");
-        draw(builtBuffer, drawParams, vertices);
+        draw(builtBuffer, drawParams, slice);
 
         vertexBuffer.rotate();
         buffer = null;
         profiler.pop();
     }
 
-    private GpuBuffer upload(MeshData builtBuffer, MeshData.DrawState drawParams, VertexFormat format) {
+    private GpuBufferSlice upload(MeshData builtBuffer, MeshData.DrawState drawParams, VertexFormat format) {
         int vertexBufferSize = drawParams.vertexCount() * format.getVertexSize();
 
         if (vertexBuffer == null || vertexBuffer.size() < vertexBufferSize) {
@@ -185,19 +182,20 @@ public abstract class OverlayRenderer {
             vertexBuffer = new MappableRingBuffer(() -> OverlayLib.MOD_ID + " overlay pipeline", GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_MAP_WRITE, vertexBufferSize);
         }
 
-        CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
-        try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(vertexBuffer.currentBuffer().slice(0, builtBuffer.vertexBuffer().remaining()), false, true)) {
+        GpuBufferSlice bufferSlice = vertexBuffer.currentBuffer().slice(0, builtBuffer.vertexBuffer().remaining());
+
+        try (GpuBufferSlice.MappedView mappedView = bufferSlice.map(false, true)) {
             MemoryUtil.memCopy(builtBuffer.vertexBuffer(), mappedView.data());
         }
 
-        return vertexBuffer.currentBuffer();
+        return bufferSlice;
     }
 
-    private void draw(MeshData builtBuffer, MeshData.DrawState drawParams, GpuBuffer vertices) {
+    private void draw(MeshData builtBuffer, MeshData.DrawState drawParams, GpuBufferSlice vertices) {
         GpuBuffer indices;
-        VertexFormat.IndexType indexType;
+        IndexType indexType;
 
-        if (MC.getMainRenderTarget().getColorTextureView() == null) {
+        if (MC.gameRenderer.mainRenderTarget().getColorTextureView() == null) {
             if (OverlayTesting.shouldReport() && (++skippedDrawCounter % 120 == 0)) {
                 OverlayTesting.report("renderer", "skipped draw because main color target is null");
             }
@@ -205,32 +203,33 @@ public abstract class OverlayRenderer {
             return;
         }
 
-        if (renderPipeline.getVertexFormatMode() == VertexFormat.Mode.QUADS) {
-            builtBuffer.sortQuads(allocator, RenderSystem.getProjectionType().vertexSorting());
-            indices = renderPipeline.getVertexFormat().uploadImmediateIndexBuffer(Objects.requireNonNull(builtBuffer.indexBuffer()));
-            indexType = builtBuffer.drawState().indexType();
-        } else {
-            RenderSystem.AutoStorageIndexBuffer shapeIndexBuffer = RenderSystem.getSequentialBuffer(renderPipeline.getVertexFormatMode());
-            indices = shapeIndexBuffer.getBuffer(drawParams.indexCount());
-            indexType = shapeIndexBuffer.type();
-        }
+        var shapeIndexBuffer = RenderSystem.getSequentialBuffer(renderPipeline.getPrimitiveTopology());
+        indices = shapeIndexBuffer.getBuffer(drawParams.indexCount());
+        indexType = shapeIndexBuffer.type();
 
         GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
-                .writeTransform(RenderSystem.getModelViewMatrix(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
+                .writeTransform(RenderSystem.getModelViewMatrixCopy(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
+
         try (RenderPass renderPass = RenderSystem.getDevice()
                 .createCommandEncoder()
-                .createRenderPass(() -> OverlayLib.MOD_ID + " overlay pipeline rendering", MC.getMainRenderTarget().getColorTextureView(), OptionalInt.empty(), MC.getMainRenderTarget().getDepthTextureView(), OptionalDouble.empty())) {
+                .createRenderPass(
+                        () -> OverlayLib.MOD_ID + " overlay pipeline rendering",
+                        MC.gameRenderer.mainRenderTarget().getColorTextureView(),
+                        Optional.empty(),
+                        MC.gameRenderer.mainRenderTarget().getDepthTextureView(),
+                        OptionalDouble.empty()
+                )) {
+
             renderPass.setPipeline(renderPipeline);
 
             RenderSystem.bindDefaultUniforms(renderPass);
             renderPass.setUniform("DynamicTransforms", dynamicTransforms);
-
             renderPass.bindTexture("Sampler0", textureSetup.texure0(), textureSetup.sampler0());
 
             renderPass.setVertexBuffer(0, vertices);
             renderPass.setIndexBuffer(indices, indexType);
 
-            renderPass.drawIndexed(0, 0, drawParams.indexCount(), 1);
+            renderPass.drawIndexed(drawParams.indexCount(), 1, 0, 0, 0);
         }
 
         builtBuffer.close();

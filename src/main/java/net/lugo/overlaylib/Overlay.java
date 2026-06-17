@@ -106,7 +106,7 @@ public class Overlay {
         int maxSectionY = MC.level.getMaxSectionY();
 
 
-        List<SectionPos> sectionsInRadius = MC.levelRenderer.getVisibleSections().stream()
+        List<SectionPos> sectionsInRadius = MC.levelRenderer.visibleSections().stream()
                 .map((s) -> SectionPos.of(s.getSectionNode()))
                 .filter((s) -> (s.getX() - playerChunkX) * (s.getX() - playerChunkX) + (s.getZ() - playerChunkZ) * (s.getZ() - playerChunkZ) <= effectiveChunkRadius * effectiveChunkRadius)
                 .filter((s) -> isWithinVerticalRange(s.getY(), playerChunkY, effectiveVerticalRadius))

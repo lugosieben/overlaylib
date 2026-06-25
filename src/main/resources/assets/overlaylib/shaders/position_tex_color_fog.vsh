@@ -1,4 +1,3 @@
-// @SuppressInspection All
 #version 330
 #moj_import <minecraft:fog.glsl>
 

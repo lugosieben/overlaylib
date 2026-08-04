@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: setup jdk
         uses: actions/setup-java@v4
@@ -32,7 +30,7 @@ jobs:
         id: check-version
         run: |
           TAG="v${{ steps.version.outputs.version }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "Version $TAG already exists (tag found). Skipping publish."
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -64,6 +62,3 @@ jobs:
           files: |
             build/libs/!(*-@(dev|sources|javadoc)).jar
             build/libs/*-@(sources|javadoc).jar
-
-          dependencies: |
-            fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}

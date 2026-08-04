@@ -32,6 +32,11 @@
     "custom": {
         "modmenu": {
             "badges": ["library"]
+        },
+        "mc-publish": {
+            "dependencies": [
+                "fabric-api@>=${fabric_api_version}(required){modrinth:P7dR8mSH}{curseforge:306612}"
+            ]
         }
     }
 }

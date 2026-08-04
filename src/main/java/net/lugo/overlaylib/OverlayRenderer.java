@@ -44,13 +44,6 @@ public abstract class OverlayRenderer {
 
     private final Minecraft MC = Minecraft.getInstance();
 
-    private final boolean doIrisFlickerFix;
-    private final double nearbyBlockDistanceSq;
-
-    protected static final double DEFAULT_NEARBY_BLOCK_DISTANCE_SQ = 12d * 12d;
-
-    private static final float IRIS_OFFSET_Y = 3E-2f;
-
     private boolean batchStarted = false;
     private RenderPass currentPass = null;
     private boolean drawPassUnavailable = false;
@@ -58,18 +51,13 @@ public abstract class OverlayRenderer {
     private float cameraX;
     private float cameraY;
     private float cameraZ;
-    private int playerBlockX;
-    private int playerBlockY;
-    private int playerBlockZ;
 
     private SectionPos sectionOrigin;
     private boolean hasVertices;
 
-    protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture, boolean doIrisFlickerFix, double nearbyBlockDistanceSq) {
+    protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture) {
         this.renderPipeline = renderPipeline;
         this.textureId = texture;
-        this.doIrisFlickerFix = doIrisFlickerFix;
-        this.nearbyBlockDistanceSq = nearbyBlockDistanceSq;
         ACTIVE_RENDERERS.add(this);
     }
 
@@ -92,12 +80,6 @@ public abstract class OverlayRenderer {
         cameraX = (float) camPos.x;
         cameraY = (float) camPos.y;
         cameraZ = (float) camPos.z;
-
-        if (MC.player != null) {
-            playerBlockX = MC.player.getBlockX();
-            playerBlockY = MC.player.getBlockY();
-            playerBlockZ = MC.player.getBlockZ();
-        }
 
         currentPass = null;
         drawPassUnavailable = false;
@@ -159,15 +141,10 @@ public abstract class OverlayRenderer {
             currentPass.bindTexture("Sampler0", textureSetup.texure0(), textureSetup.sampler0());
         }
 
-        float translateY = -cameraY + sectionPos.minBlockY();
-        if (doIrisFlickerFix && isSectionFarFromPlayer(sectionPos)) {
-            translateY += IRIS_OFFSET_Y;
-        }
-
         Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrixCopy())
                 .mul(new Matrix4f().translation(
                         -cameraX + sectionPos.minBlockX(),
-                        translateY,
+                        -cameraY + sectionPos.minBlockY(),
                         -cameraZ + sectionPos.minBlockZ()
                 ));
 
@@ -192,16 +169,6 @@ public abstract class OverlayRenderer {
 
     public long getFrameStateToken() {
         return 0L;
-    }
-
-    private boolean isSectionFarFromPlayer(SectionPos section) {
-        int centerX = section.minBlockX() + 8;
-        int centerY = section.minBlockY() + 8;
-        int centerZ = section.minBlockZ() + 8;
-        double dx = centerX - playerBlockX;
-        double dy = centerY - playerBlockY;
-        double dz = centerZ - playerBlockZ;
-        return dx * dx + dy * dy + dz * dz >= nearbyBlockDistanceSq;
     }
 
     protected abstract void addVertices(float x, float y, float z, OverlayRendererBlockData blockData);

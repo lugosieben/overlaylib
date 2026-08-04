@@ -75,7 +75,7 @@ public class CachedSimpleTextureTest {
 			if (testOverlay == null) {
 				CachedOverlayManager manager = new CachedOverlayManager(CachedSimpleTextureTest::computeBlockData, 8192, 64);
 				testOverlay = new Overlay(
-						new CamFacingTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png"), true, 12d * 12d),
+						new CamFacingTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png")),
 						6,
 						Overlay.CHUNK_SCAN_RADIUS_VERTICAL_MAX,
 						manager

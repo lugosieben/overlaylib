@@ -13,8 +13,8 @@ public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRendere
     private static final float EPSILON = 1E-3f;
     private UVRotation uvRotation = UVRotation.NONE;
 
-    public CamFacingTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix, double nearbyBlockDistanceSq) {
-        super(texture, doIrisFlickerFix, nearbyBlockDistanceSq);
+    public CamFacingTextureOverlayRenderer(Identifier texture) {
+        super(texture);
     }
 
     public final void startBatch(LevelRenderContext context) {

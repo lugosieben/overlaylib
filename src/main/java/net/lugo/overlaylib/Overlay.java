@@ -10,6 +10,8 @@ import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 public class Overlay {
     private static final Minecraft MC = Minecraft.getInstance();
@@ -22,6 +24,7 @@ public class Overlay {
     private int chunkScanRadiusVertical;
     private boolean active = true;
     private boolean isRegistered = false;
+    private BooleanSupplier renderFilter = () -> true;
 
     private int frameCounter;
     private int lastPreparedPlayerChunkX = Integer.MIN_VALUE;
@@ -44,6 +47,15 @@ public class Overlay {
 
     public OverlayManager getOverlayManager() {
         return overlayManager;
+    }
+
+    public void setRenderFilter(BooleanSupplier renderFilter) {
+        this.renderFilter = Objects.requireNonNull(renderFilter, "renderFilter");
+        OverlayTesting.report("overlay", () -> "renderFilter=" + renderFilter);
+    }
+
+    public BooleanSupplier getRenderFilter() {
+        return renderFilter;
     }
 
     public void setActive(boolean isActive) {
@@ -219,7 +231,7 @@ public class Overlay {
         isRegistered = true;
         OverlayTesting.report("overlay", "registered render hook");
         LevelRenderEvents.END_MAIN.register((context -> {
-            if (MC.player == null || MC.level == null || !active) return;
+            if (MC.player == null || MC.level == null || !active || !renderFilter.getAsBoolean()) return;
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");
             profiler.push("render");

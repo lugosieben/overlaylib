@@ -63,14 +63,15 @@ public abstract class OverlayRenderer {
     private float cameraZ;
 
     private static final float IRIS_OFFSET_Y = 3E-2f;
-    private static final double NEARBY_BLOCK_DISTANCE_SQ = 12d * 12d;
 
     private final boolean doIrisFlickerFix;
+    private final double nearbyBlockDistanceSq;
 
-    protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture, boolean doIrisFlickerFix) {
+    protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture, boolean doIrisFlickerFix, double nearbyBlockDistanceSq) {
         this.renderPipeline = renderPipeline;
         this.textureId = texture;
         this.doIrisFlickerFix = doIrisFlickerFix;
+        this.nearbyBlockDistanceSq = nearbyBlockDistanceSq;
         ACTIVE_RENDERERS.add(this);
     }
 
@@ -123,7 +124,7 @@ public abstract class OverlayRenderer {
             double dx = pos.getX() - playerBlockX;
             double dy = pos.getY() - playerBlockY;
             double dz = pos.getZ() - playerBlockZ;
-            if ((dx * dx + dy * dy + dz * dz) >= NEARBY_BLOCK_DISTANCE_SQ) {
+            if ((dx * dx + dy * dy + dz * dz) >= nearbyBlockDistanceSq) {
                 y += IRIS_OFFSET_Y;
             }
         }
@@ -210,6 +211,7 @@ public abstract class OverlayRenderer {
         GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
                 .writeTransform(RenderSystem.getModelViewMatrixCopy(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
 
+        //noinspection DataFlowIssue
         try (RenderPass renderPass = RenderSystem.getDevice()
                 .createCommandEncoder()
                 .createRenderPass(

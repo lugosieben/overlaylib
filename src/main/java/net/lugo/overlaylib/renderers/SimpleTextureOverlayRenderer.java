@@ -10,8 +10,8 @@ import net.minecraft.resources.Identifier;
 public class SimpleTextureOverlayRenderer extends OverlayRenderer {
     private static final float EPSILON = 1E-3f;
 
-    public SimpleTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
-        super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture, doIrisFlickerFix);
+    public SimpleTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix, double nearbyBlockDistanceSq) {
+        super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture, doIrisFlickerFix, nearbyBlockDistanceSq);
     }
 
     @Override

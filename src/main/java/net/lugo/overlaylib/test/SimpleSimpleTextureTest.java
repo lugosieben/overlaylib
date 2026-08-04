@@ -70,7 +70,7 @@ public class SimpleSimpleTextureTest {
 			if (testOverlay == null) {
 				SimpleOverlayManager manager = new SimpleOverlayManager(SimpleSimpleTextureTest::computeBlockData);
 				testOverlay = new Overlay(
-						new SimpleTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png"), true),
+						new SimpleTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png"), true, 12d * 12d),
 						6,
 						Overlay.CHUNK_SCAN_RADIUS_VERTICAL_MAX,
 						manager

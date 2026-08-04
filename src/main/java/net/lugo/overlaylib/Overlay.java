@@ -20,6 +20,8 @@ public class Overlay {
 
     private final OverlayRenderer renderer;
     private final OverlayManager overlayManager;
+    private final SectionMeshCache meshCache;
+    private int maxMeshBuildsPerFrame = 16;
     private int chunkScanRadius;
     private int chunkScanRadiusVertical;
     private boolean active = true;
@@ -40,6 +42,7 @@ public class Overlay {
         this.chunkScanRadius = initialChunkScanRadius;
         this.chunkScanRadiusVertical = initialChunkScanRadiusVertical;
         this.overlayManager = manager;
+        this.meshCache = new SectionMeshCache(renderer);
         overlayManager.setChunkScanRadius(chunkScanRadius);
         overlayManager.setChunkScanRadiusVertical(chunkScanRadiusVertical);
         OverlayTesting.report("overlay", () -> "created radius=" + initialChunkScanRadius + "/" + initialChunkScanRadiusVertical);
@@ -47,6 +50,10 @@ public class Overlay {
 
     public OverlayManager getOverlayManager() {
         return overlayManager;
+    }
+
+    public void setMaxMeshBuildsPerFrame(int maxMeshBuildsPerFrame) {
+        this.maxMeshBuildsPerFrame = Math.max(1, maxMeshBuildsPerFrame);
     }
 
     public void setRenderFilter(BooleanSupplier renderFilter) {
@@ -61,6 +68,7 @@ public class Overlay {
     public void setActive(boolean isActive) {
         this.active = isActive;
         overlayManager.setActive(isActive);
+        meshCache.clearAll();
         if (isActive) {
             overlayManager.setChunkScanRadius(chunkScanRadius);
             overlayManager.setChunkScanRadiusVertical(chunkScanRadiusVertical);
@@ -105,7 +113,8 @@ public class Overlay {
         prepareSectionsIfNeeded();
 
         boolean reportThisFrame = OverlayTesting.shouldReport() && (++frameCounter % 120 == 0);
-        int renderedBlocks = 0;
+        int drawnSections = 0;
+        int builtSections = 0;
         int missingSections = 0;
         int consideredSections = 0;
 
@@ -128,29 +137,45 @@ public class Overlay {
             sectionsInRadius = getSectionsInRadius(playerChunkX, playerChunkY, playerChunkZ, effectiveChunkRadius, effectiveVerticalRadius, minSectionY, maxSectionY);
         }
 
+        long frameToken = renderer.getFrameStateToken();
+        int meshBuildsLeft = maxMeshBuildsPerFrame;
+
         for (SectionPos sectionPos : sectionsInRadius) {
             consideredSections++;
-            OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
-            if (blocks == null) {
-                if (reportThisFrame) {
-                    missingSections++;
+            long dataVersion = overlayManager.getSectionVersion(sectionPos);
+            if (!meshCache.isCurrent(sectionPos, dataVersion, frameToken)) {
+                if (meshBuildsLeft > 0) {
+                    OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
+                    if (blocks == null) {
+                        if (reportThisFrame) {
+                            missingSections++;
+                        }
+                        meshCache.remove(sectionPos);
+                        continue;
+                    }
+
+                    long freshDataVersion = overlayManager.getSectionVersion(sectionPos);
+                    meshCache.build(sectionPos, freshDataVersion, blocks);
+                    meshBuildsLeft--;
+                    builtSections++;
                 }
+            }
+            SectionMeshCache.SectionMesh mesh = meshCache.get(sectionPos);
+            if (mesh == null || mesh.isEmpty()) {
                 continue;
             }
-            if (reportThisFrame) {
-                renderedBlocks += blocks.length;
-            }
-            for (OverlayRendererBlockData blockData : blocks) {
-                renderer.addBlock(blockData);
-            }
+            renderer.drawSection(sectionPos, mesh);
+            drawnSections++;
         }
 
         if (reportThisFrame) {
-            int finalRenderedBlocks = renderedBlocks;
+            int finalDrawnSections = drawnSections;
+            int finalBuiltSections = builtSections;
             int finalMissingSections = missingSections;
             int finalConsideredSections = consideredSections;
             OverlayTesting.report("overlay", () -> "frameSummary consideredSections=" + finalConsideredSections
-                    + ", renderedBlocks=" + finalRenderedBlocks + ", pendingSections=" + finalMissingSections);
+                    + ", drawnSections=" + finalDrawnSections + ", builtSections=" + finalBuiltSections
+                    + ", missingSections=" + finalMissingSections);
         }
     }
 
@@ -235,14 +260,11 @@ public class Overlay {
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");
             profiler.push("render");
-            profiler.push("startBatch");
             renderer.startBatch(context);
-            profiler.popPush("render");
+            profiler.popPush("draw");
             renderAllBlocks();
             profiler.popPush("endBatch");
             renderer.endBatch();
-            profiler.pop();
-            renderer.uploadThenDraw();
             profiler.pop();
             profiler.pop();
         }));

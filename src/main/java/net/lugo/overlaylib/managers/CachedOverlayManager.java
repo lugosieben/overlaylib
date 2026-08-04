@@ -41,6 +41,7 @@ public class CachedOverlayManager implements OverlayManager {
     private final Queue<SectionPos> computeQueue = new ConcurrentLinkedQueue<>();
     private final Set<SectionPos> queuedSections = ConcurrentHashMap.newKeySet();
     private final Set<SectionPos> importantSections = ConcurrentHashMap.newKeySet();
+    private final Map<SectionPos, Long> sectionVersions = new ConcurrentHashMap<>();
 
     private final Function<BlockPos, OverlayRendererBlockData> computeFunction;
 
@@ -104,6 +105,11 @@ public class CachedOverlayManager implements OverlayManager {
         return null;
     }
 
+    @Override
+    public long getSectionVersion(SectionPos sectionPos) {
+        return sectionVersions.getOrDefault(sectionPos, 0L);
+    }
+
 
     public void processQueue() {
         if (isProcessing.compareAndSet(false, true)) {
@@ -134,6 +140,7 @@ public class CachedOverlayManager implements OverlayManager {
                 }
                 if (sectionPos == null) break;
                 queuedSections.remove(sectionPos);
+                importantSections.remove(sectionPos);
                 if (!cache.containsKey(sectionPos)) {
                     compute(sectionPos);
                 }
@@ -314,6 +321,7 @@ public class CachedOverlayManager implements OverlayManager {
 
         OverlayRendererBlockData[] blocksArray = renderableBlocks.toArray(OverlayRendererBlockData[]::new);
         cache.put(sectionPos, new CacheSectionPosEntry(sectionPos, blocksArray, System.currentTimeMillis()));
+        bumpVersion(sectionPos);
 
         if (OverlayTesting.shouldReport() && (++computeSummaryCounter % 200 == 0)) {
             int blockCount = blocksArray.length;
@@ -328,6 +336,7 @@ public class CachedOverlayManager implements OverlayManager {
         boolean removedCached = cache.remove(sectionPos) != null;
         boolean removedQueued = queuedSections.remove(sectionPos);
         if (removedCached || removedQueued) {
+            bumpVersion(sectionPos);
             OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
             return true;
         }
@@ -337,6 +346,7 @@ public class CachedOverlayManager implements OverlayManager {
     public void refresh(SectionPos sectionPos) {
         if (clear(sectionPos)) {
             importantSections.add(sectionPos);
+            prepareSection(sectionPos);
         }
     }
 
@@ -355,7 +365,12 @@ public class CachedOverlayManager implements OverlayManager {
         computeQueue.clear();
         queuedSections.clear();
         importantSections.clear();
+        sectionVersions.clear();
         OverlayTesting.report("cache", "cleared all cache state");
+    }
+
+    private void bumpVersion(SectionPos sectionPos) {
+        sectionVersions.merge(sectionPos, 1L, Long::sum);
     }
 
     private static void ensureTickRegistered() {

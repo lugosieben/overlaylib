@@ -25,6 +25,11 @@ public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRendere
     }
 
     @Override
+    public long getFrameStateToken() {
+        return uvRotation == null ? 0L : uvRotation.ordinal();
+    }
+
+    @Override
     protected void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
         float y = worldY + 1f + EPSILON;
 

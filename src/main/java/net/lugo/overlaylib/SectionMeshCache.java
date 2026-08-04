@@ -85,10 +85,15 @@ public class SectionMeshCache {
         for (OverlayRendererBlockData blockData : blocks) {
             renderer.addBlock(blockData);
         }
-        MeshData built = renderer.endSection();
-        entry.mesh = built == null ? EMPTY_MESH : upload(entry, built);
-        entry.dataVersion = dataVersion;
-        entry.frameToken = renderer.getFrameStateToken();
+        try (MeshData built = renderer.endSection()) {
+            if (built == null) {
+                entry.mesh = EMPTY_MESH;
+            } else {
+                entry.mesh = upload(entry, built);
+            }
+            entry.dataVersion = dataVersion;
+            entry.frameToken = renderer.getFrameStateToken();
+        }
     }
 
     private SectionMesh upload(Entry entry, MeshData built) {

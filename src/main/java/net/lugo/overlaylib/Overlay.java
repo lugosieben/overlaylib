@@ -158,6 +158,8 @@ public class Overlay {
                     meshCache.build(sectionPos, freshDataVersion, blocks);
                     meshBuildsLeft--;
                     builtSections++;
+                } else {
+                    continue;
                 }
             }
             SectionMeshCache.SectionMesh mesh = meshCache.get(sectionPos);

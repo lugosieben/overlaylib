@@ -346,7 +346,6 @@ public class CachedOverlayManager implements OverlayManager {
     public void refresh(SectionPos sectionPos) {
         if (clear(sectionPos)) {
             importantSections.add(sectionPos);
-            prepareSection(sectionPos);
         }
     }
 

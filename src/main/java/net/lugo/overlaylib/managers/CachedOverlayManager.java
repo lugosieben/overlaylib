@@ -133,18 +133,9 @@ public class CachedOverlayManager implements OverlayManager {
 
             int processed = 0;
             while (processed < maxComputationsPerTick && !computeQueue.isEmpty()) {
-                SectionPos sectionPos;
-                if (!importantSections.isEmpty()) {
-                    sectionPos = pollImportantSection();
-                    if (sectionPos == null) {
-                        sectionPos = computeQueue.poll();
-                    }
-                } else {
-                    sectionPos = computeQueue.poll();
-                }
+                SectionPos sectionPos = computeQueue.poll();
                 if (sectionPos == null) break;
                 queuedSections.remove(sectionPos);
-                importantSections.remove(sectionPos);
                 if (!cache.containsKey(sectionPos)) {
                     compute(sectionPos);
                 }
@@ -191,17 +182,6 @@ public class CachedOverlayManager implements OverlayManager {
                 }
             }
         }
-    }
-
-    private SectionPos pollImportantSection() {
-        Iterator<SectionPos> iterator = importantSections.iterator();
-        if (!iterator.hasNext()) {
-            return null;
-        }
-
-        SectionPos sectionPos = iterator.next();
-        iterator.remove();
-        return sectionPos;
     }
 
     private void reprioritizeQueue() {
@@ -361,8 +341,10 @@ public class CachedOverlayManager implements OverlayManager {
 
     public boolean clear(SectionPos sectionPos) {
         boolean removedCached = cache.remove(sectionPos) != null;
-        if (removedCached) {
+        boolean removedQueued = queuedSections.remove(sectionPos) | computeQueue.remove(sectionPos);
+        if (removedCached || removedQueued) {
             bumpVersion(sectionPos);
+            importantSections.add(sectionPos);
             OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
             return true;
         }
@@ -370,9 +352,7 @@ public class CachedOverlayManager implements OverlayManager {
     }
 
     public void refresh(SectionPos sectionPos) {
-        if (clear(sectionPos)) {
-            importantSections.add(sectionPos);
-        }
+        clear(sectionPos);
     }
 
     public boolean clear(BlockPos blockPos) {

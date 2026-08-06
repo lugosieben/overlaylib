@@ -23,11 +23,14 @@ public class SectionMeshCache {
         }
     }
 
+    public record CacheKey(SectionPos pos, long frameToken) {
+    }
+
     private final int maxCacheSize;
 
-    private final Map<SectionPos, SectionMeshCache.Entry> entries = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+    private final Map<CacheKey, SectionMeshCache.Entry> entries = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
         @Override
-        protected boolean removeEldestEntry(Map.Entry<SectionPos, SectionMeshCache.Entry> eldest) {
+        protected boolean removeEldestEntry(Map.Entry<CacheKey, SectionMeshCache.Entry> eldest) {
             if (size() > maxCacheSize) {
                 eldest.getValue().close();
                 return true;
@@ -39,7 +42,6 @@ public class SectionMeshCache {
     private static final class Entry {
         SectionMesh mesh;
         long dataVersion = Long.MIN_VALUE;
-        long frameToken = Long.MIN_VALUE;
         MappableRingBuffer vertexBuffer;
 
         void close() {
@@ -60,16 +62,17 @@ public class SectionMeshCache {
     }
 
     public boolean isCurrent(SectionPos pos, long dataVersion, long frameToken) {
-        Entry entry = entries.get(pos);
+        Entry entry = entries.get(new CacheKey(pos, frameToken));
         return entry != null && entry.mesh != null
-                && entry.dataVersion == dataVersion && entry.frameToken == frameToken;
+                && entry.dataVersion == dataVersion;
     }
 
     public void store(SectionPos pos, long dataVersion, long frameToken, MeshData built) {
-        Entry entry = entries.get(pos);
+        CacheKey key = new CacheKey(pos, frameToken);
+        Entry entry = entries.get(key);
         if (entry == null) {
             entry = new Entry();
-            entries.put(pos, entry);
+            entries.put(key, entry);
         } else if (entry.vertexBuffer != null) {
             entry.vertexBuffer.rotate();
         }
@@ -80,7 +83,6 @@ public class SectionMeshCache {
             entry.mesh = upload(entry, built);
         }
         entry.dataVersion = dataVersion;
-        entry.frameToken = frameToken;
     }
 
     private SectionMesh upload(Entry entry, MeshData built) {
@@ -106,15 +108,21 @@ public class SectionMeshCache {
         return new SectionMesh(slice, drawState.vertexCount(), drawState.indexCount());
     }
 
-    public SectionMesh get(SectionPos pos) {
-        Entry entry = entries.get(pos);
+    public SectionMesh get(SectionPos pos, long frameToken) {
+        Entry entry = entries.get(new CacheKey(pos, frameToken));
         return entry == null ? null : entry.mesh;
     }
 
     public void remove(SectionPos pos) {
-        Entry entry = entries.remove(pos);
-        if (entry != null) {
-            entry.close();
+        synchronized (entries) {
+            Iterator<Map.Entry<CacheKey, Entry>> it = entries.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<CacheKey, Entry> e = it.next();
+                if (e.getKey().pos().equals(pos)) {
+                    e.getValue().close();
+                    it.remove();
+                }
+            }
         }
     }
 

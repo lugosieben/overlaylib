@@ -61,7 +61,7 @@ public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
                 buildMesh(sectionPos, freshDataVersion, blocks);
                 builtSections++;
             }
-            SectionMeshCache.SectionMesh mesh = meshCache.get(sectionPos);
+            SectionMeshCache.SectionMesh mesh = meshCache.get(sectionPos, frameToken);
             if (mesh == null || mesh.isEmpty()) {
                 continue;
             }

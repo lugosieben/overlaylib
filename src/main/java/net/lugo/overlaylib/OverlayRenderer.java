@@ -16,10 +16,12 @@ import net.lugo.overlaylib.util.RetiredGpuBuffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.MappableRingBuffer;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -58,6 +60,8 @@ public abstract class OverlayRenderer {
     private double cameraX;
     private double cameraY;
     private double cameraZ;
+
+    private Frustum frustum;
 
     private SectionPos sectionOrigin;
     private boolean hasVertices;
@@ -159,6 +163,10 @@ public abstract class OverlayRenderer {
         currentPass = null;
         drawPassUnavailable = false;
         batchStarted = true;
+
+        Frustum cullFrustum = context.levelState().cameraRenderState.cullFrustum;
+        frustum = new Frustum(cullFrustum);
+        frustum.prepare(cameraX, cameraY, cameraZ);
     }
 
     public void endBatch() {
@@ -232,8 +240,17 @@ public abstract class OverlayRenderer {
 
     public final void drawSection(SectionPos sectionPos, GpuBufferSlice slice, int indexCount) {
         if (!batchStarted || slice == null || indexCount == 0 || drawPassUnavailable) return;
+        if (!isSectionVisible(sectionPos)) return;
 
         drawMesh(slice, indexCount, sectionModelView(sectionPos));
+    }
+
+    private boolean isSectionVisible(SectionPos sectionPos) {
+        if (frustum == null) return true;
+        double minX = sectionPos.minBlockX();
+        double minY = sectionPos.minBlockY();
+        double minZ = sectionPos.minBlockZ();
+        return frustum.isVisible(new AABB(minX, minY, minZ, minX + 16, minY + 16, minZ + 16));
     }
 
     private Matrix4f sectionModelView(SectionPos sectionPos) {

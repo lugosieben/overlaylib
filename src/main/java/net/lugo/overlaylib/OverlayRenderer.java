@@ -70,6 +70,9 @@ public abstract class OverlayRenderer {
 
     private final boolean doIrisFlickerFix;
 
+    private Matrix4f cameraModelView = new Matrix4f();
+    private final Matrix4f sectionTranslation = new Matrix4f();
+
     protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture) {
         this(renderPipeline, texture, true);
     }
@@ -148,6 +151,8 @@ public abstract class OverlayRenderer {
 
     public void startBatch(LevelRenderContext context) {
         if (batchStarted) return;
+
+        cameraModelView = RenderSystem.getModelViewMatrixCopy();
 
         if (textureSetup == null) {
             GpuTextureView gpuTextureView = MC.getTextureManager().getTexture(textureId).getTextureView();
@@ -258,12 +263,12 @@ public abstract class OverlayRenderer {
         if (doIrisFlickerFix) {
             translateY += IrisFlickerFix.getInstance().offset(distanceToSectionCenter(sectionPos));
         }
-        return new Matrix4f(RenderSystem.getModelViewMatrixCopy())
-                .mul(new Matrix4f().translation(
-                        (float) (-cameraX + sectionPos.minBlockX()),
-                        translateY,
-                        (float) (-cameraZ + sectionPos.minBlockZ())
-                ));
+        sectionTranslation.identity().translation(
+                (float) (-cameraX + sectionPos.minBlockX()),
+                translateY,
+                (float) (-cameraZ + sectionPos.minBlockZ())
+        );
+        return new Matrix4f(cameraModelView).mul(sectionTranslation);
     }
 
     private float distanceToSectionCenter(SectionPos sectionPos) {

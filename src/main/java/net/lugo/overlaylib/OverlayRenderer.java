@@ -1,5 +1,6 @@
 package net.lugo.overlaylib;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -12,6 +13,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
+import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -20,7 +22,10 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.lwjgl.system.MemoryUtil;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -44,16 +49,18 @@ public abstract class OverlayRenderer {
 
     private final Minecraft MC = Minecraft.getInstance();
 
-    private boolean batchStarted = false;
+    protected boolean batchStarted = false;
     private RenderPass currentPass = null;
     private boolean drawPassUnavailable = false;
 
-    private float cameraX;
-    private float cameraY;
-    private float cameraZ;
+    private double cameraX;
+    private double cameraY;
+    private double cameraZ;
 
     private SectionPos sectionOrigin;
     private boolean hasVertices;
+
+    private MappableRingBuffer frameVertexBuffer;
 
     protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture) {
         this.renderPipeline = renderPipeline;
@@ -67,6 +74,65 @@ public abstract class OverlayRenderer {
         }
     }
 
+    public record RenderResult(int consideredSections, int drawnSections, int builtSections, int missingSections) {
+    }
+
+    private record PendingMesh(SectionPos sectionPos, MeshData mesh) {
+    }
+
+    public RenderResult renderSections(OverlayManager manager, List<SectionPos> sections) {
+        if (!batchStarted) {
+            return new RenderResult(sections.size(), 0, 0, 0);
+        }
+
+        int consideredSections = 0;
+        int drawnSections = 0;
+        int missingSections = 0;
+
+        List<PendingMesh> pendingMeshes = new ArrayList<>();
+        int totalVertexBytes = 0;
+
+        try {
+            for (SectionPos sectionPos : sections) {
+                consideredSections++;
+                OverlayRendererBlockData[] blocks = manager.getSectionBlocks(sectionPos);
+                if (blocks == null) {
+                    missingSections++;
+                    continue;
+                }
+                beginSection(sectionPos);
+                for (OverlayRendererBlockData blockData : blocks) {
+                    addBlock(blockData);
+                }
+                MeshData built = endSection();
+                if (built == null) {
+                    continue;
+                }
+                totalVertexBytes += built.drawState().vertexCount() * built.drawState().format().getVertexSize();
+                pendingMeshes.add(new PendingMesh(sectionPos, built));
+            }
+
+            if (!pendingMeshes.isEmpty()) {
+                ensureFrameBufferCapacity(totalVertexBytes);
+
+                long writeOffset = 0;
+                for (PendingMesh pending : pendingMeshes) {
+                    MeshData built = pending.mesh();
+                    int meshVertexBytes = built.drawState().vertexCount() * built.drawState().format().getVertexSize();
+                    GpuBufferSlice slice = uploadToFrameBuffer(built, writeOffset);
+                    writeOffset += meshVertexBytes;
+                    drawSection(pending.sectionPos(), slice, built.drawState().indexCount());
+                    drawnSections++;
+                }
+            }
+        } finally {
+            for (PendingMesh pending : pendingMeshes) {
+                pending.mesh().close();
+            }
+        }
+        return new RenderResult(consideredSections, drawnSections, 0, missingSections);
+    }
+
     public void startBatch(LevelRenderContext context) {
         if (batchStarted) return;
 
@@ -77,13 +143,32 @@ public abstract class OverlayRenderer {
         }
 
         Vec3 camPos = context.levelState().cameraRenderState.pos;
-        cameraX = (float) camPos.x;
-        cameraY = (float) camPos.y;
-        cameraZ = (float) camPos.z;
+        cameraX = camPos.x;
+        cameraY = camPos.y;
+        cameraZ = camPos.z;
 
         currentPass = null;
         drawPassUnavailable = false;
         batchStarted = true;
+    }
+
+    public void endBatch() {
+        if (!batchStarted) return;
+        batchStarted = false;
+        if (currentPass != null) {
+            currentPass.close();
+            currentPass = null;
+        }
+        if (frameVertexBuffer != null) {
+            frameVertexBuffer.rotate();
+        }
+    }
+
+    public long getFrameStateToken() {
+        return 0L;
+    }
+
+    public void clearCache() {
     }
 
     public final void beginSection(SectionPos sectionPos) {
@@ -92,7 +177,6 @@ public abstract class OverlayRenderer {
         hasVertices = false;
     }
 
-    /** Adds one block's geometry to the section mesh currently being built. */
     public final void addBlock(OverlayRendererBlockData data) {
         if (buffer == null || sectionOrigin == null || !data.shouldRender()) return;
 
@@ -119,6 +203,50 @@ public abstract class OverlayRenderer {
     public final void drawSection(SectionPos sectionPos, SectionMeshCache.SectionMesh mesh) {
         if (!batchStarted || mesh == null || mesh.isEmpty() || drawPassUnavailable) return;
 
+        drawSection(sectionPos, mesh.slice(), mesh.indexCount());
+    }
+
+    public final void drawSection(SectionPos sectionPos, GpuBufferSlice slice, int indexCount) {
+        if (!batchStarted || slice == null || indexCount == 0 || drawPassUnavailable) return;
+
+        drawMesh(slice, indexCount, sectionModelView(sectionPos));
+    }
+
+    private Matrix4f sectionModelView(SectionPos sectionPos) {
+        return new Matrix4f(RenderSystem.getModelViewMatrixCopy())
+                .mul(new Matrix4f().translation(
+                        (float) (-cameraX + sectionPos.minBlockX()),
+                        (float) (-cameraY + sectionPos.minBlockY()),
+                        (float) (-cameraZ + sectionPos.minBlockZ())
+                ));
+    }
+
+    private void ensureFrameBufferCapacity(int requiredBytes) {
+        if (frameVertexBuffer != null && frameVertexBuffer.size() >= requiredBytes) {
+            return;
+        }
+        if (frameVertexBuffer != null) {
+            frameVertexBuffer.currentBuffer();
+            frameVertexBuffer.close();
+        }
+        frameVertexBuffer = new MappableRingBuffer(
+                () -> OverlayLib.MOD_ID + " overlay frame buffer",
+                GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_MAP_WRITE,
+                Math.max(1, requiredBytes)
+        );
+    }
+
+    private GpuBufferSlice uploadToFrameBuffer(MeshData built, long writeOffset) {
+        GpuBufferSlice slice = frameVertexBuffer.currentBuffer().slice(writeOffset, built.vertexBuffer().remaining());
+        try (GpuBufferSlice.MappedView mappedView = slice.map(false, true)) {
+            MemoryUtil.memCopy(built.vertexBuffer(), mappedView.data());
+        }
+        return slice;
+    }
+
+    private void drawMesh(GpuBufferSlice slice, int indexCount, Matrix4f modelView) {
+        if (drawPassUnavailable) return;
+
         if (currentPass == null) {
             if (MC.gameRenderer.mainRenderTarget().getColorTextureView() == null) {
                 drawPassUnavailable = true;
@@ -141,34 +269,14 @@ public abstract class OverlayRenderer {
             currentPass.bindTexture("Sampler0", textureSetup.texure0(), textureSetup.sampler0());
         }
 
-        Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrixCopy())
-                .mul(new Matrix4f().translation(
-                        -cameraX + sectionPos.minBlockX(),
-                        -cameraY + sectionPos.minBlockY(),
-                        -cameraZ + sectionPos.minBlockZ()
-                ));
-
         GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
                 .writeTransform(modelView, COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
         currentPass.setUniform("DynamicTransforms", dynamicTransforms);
 
         var shapeIndexBuffer = RenderSystem.getSequentialBuffer(renderPipeline.getPrimitiveTopology());
-        currentPass.setVertexBuffer(0, mesh.slice());
-        currentPass.setIndexBuffer(shapeIndexBuffer.getBuffer(mesh.indexCount()), shapeIndexBuffer.type());
-        currentPass.drawIndexed(mesh.indexCount(), 1, 0, 0, 0);
-    }
-
-    public final void endBatch() {
-        if (!batchStarted) return;
-        batchStarted = false;
-        if (currentPass != null) {
-            currentPass.close();
-            currentPass = null;
-        }
-    }
-
-    public long getFrameStateToken() {
-        return 0L;
+        currentPass.setVertexBuffer(0, slice);
+        currentPass.setIndexBuffer(shapeIndexBuffer.getBuffer(indexCount), shapeIndexBuffer.type());
+        currentPass.drawIndexed(indexCount, 1, 0, 0, 0);
     }
 
     protected abstract void addVertices(float x, float y, float z, OverlayRendererBlockData blockData);

@@ -2,10 +2,13 @@ package net.lugo.overlaylib.test;
 
 import net.lugo.overlaylib.Overlay;
 import net.lugo.overlaylib.OverlayLib;
+import net.lugo.overlaylib.OverlayRenderer;
 import net.lugo.overlaylib.managers.SimpleOverlayManager;
-import net.lugo.overlaylib.renderers.SimpleTextureOverlayRenderer;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.lugo.overlaylib.util.OverlayVertexHelper;
+import net.lugo.overlaylib.util.RenderPipelines;
 import net.lugo.overlaylib.util.TextureSection;
+import net.lugo.overlaylib.util.UVRotation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -39,6 +42,25 @@ public class SimpleSimpleTextureTest {
 		INSTANCE.register(TEST_ID, Map.of());
 	}
 
+	private static final class NonCachedSimpleTextureOverlayRenderer extends OverlayRenderer {
+		private static final float EPSILON = 1E-3f;
+
+		NonCachedSimpleTextureOverlayRenderer(Identifier texture) {
+			super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture);
+		}
+
+		@Override
+		protected void addVertices(float x, float y, float z, OverlayRendererBlockData data) {
+			OverlayVertexHelper.texturedSquareAtY(
+					buffer,
+					x, y + 1f + EPSILON, z,
+					data.r(), data.g(), data.b(),
+					data.textureSection(),
+					UVRotation.NONE
+			);
+		}
+	}
+
 	private static OverlayRendererBlockData computeBlockData(BlockPos pos) {
 		if (MC.level == null) return OverlayRendererBlockData.NO_RENDER;
 
@@ -70,7 +92,7 @@ public class SimpleSimpleTextureTest {
 			if (testOverlay == null) {
 				SimpleOverlayManager manager = new SimpleOverlayManager(SimpleSimpleTextureTest::computeBlockData);
 				testOverlay = new Overlay(
-						new SimpleTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png")),
+						new NonCachedSimpleTextureOverlayRenderer(Identifier.fromNamespaceAndPath(OverlayLib.MOD_ID, "icon.png")),
 						6,
 						Overlay.CHUNK_SCAN_RADIUS_VERTICAL_MAX,
 						manager

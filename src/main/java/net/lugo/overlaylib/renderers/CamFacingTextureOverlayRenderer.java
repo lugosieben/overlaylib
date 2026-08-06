@@ -30,16 +30,12 @@ public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRendere
     }
 
     @Override
-    protected void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
-        float y = worldY + 1f + EPSILON;
-
-        OverlayVertexHelper.squareFromTriags(
+    protected void addVertices(float x, float y, float z, OverlayRendererBlockData data) {
+        OverlayVertexHelper.texturedSquareAtY(
                 buffer,
-                OverlayVertexHelper.FixedAxis.Y, y,
-                worldX, worldZ,
+                x, y + 1f + EPSILON, z,
                 data.r(), data.g(), data.b(),
-                data.textureSection().uStart(), data.textureSection().vStart(),
-                data.textureSection().uEnd(), data.textureSection().vEnd(),
+                data.textureSection(),
                 uvRotation
         );
     }

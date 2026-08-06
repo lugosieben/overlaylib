@@ -4,7 +4,6 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.core.SectionPos;
 import org.lwjgl.system.MemoryUtil;
@@ -23,7 +22,6 @@ public class SectionMeshCache {
         }
     }
 
-    private final OverlayRenderer renderer;
     private final int maxCacheSize;
 
     private final Map<SectionPos, SectionMeshCache.Entry> entries = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
@@ -52,12 +50,11 @@ public class SectionMeshCache {
         }
     }
 
-    public SectionMeshCache(OverlayRenderer renderer) {
-        this(renderer, 4096);
+    public SectionMeshCache() {
+        this(4096);
     }
 
-    public SectionMeshCache(OverlayRenderer renderer, int maxCacheSize) {
-        this.renderer = renderer;
+    public SectionMeshCache(int maxCacheSize) {
         this.maxCacheSize = Math.max(1, maxCacheSize);
     }
 
@@ -67,12 +64,7 @@ public class SectionMeshCache {
                 && entry.dataVersion == dataVersion && entry.frameToken == frameToken;
     }
 
-    public void build(SectionPos pos, long dataVersion, OverlayRendererBlockData[] blocks) {
-        if (blocks == null) {
-            remove(pos);
-            return;
-        }
-
+    public void store(SectionPos pos, long dataVersion, long frameToken, MeshData built) {
         Entry entry = entries.get(pos);
         if (entry == null) {
             entry = new Entry();
@@ -81,19 +73,13 @@ public class SectionMeshCache {
             entry.vertexBuffer.rotate();
         }
 
-        renderer.beginSection(pos);
-        for (OverlayRendererBlockData blockData : blocks) {
-            renderer.addBlock(blockData);
+        if (built == null) {
+            entry.mesh = EMPTY_MESH;
+        } else {
+            entry.mesh = upload(entry, built);
         }
-        try (MeshData built = renderer.endSection()) {
-            if (built == null) {
-                entry.mesh = EMPTY_MESH;
-            } else {
-                entry.mesh = upload(entry, built);
-            }
-            entry.dataVersion = dataVersion;
-            entry.frameToken = renderer.getFrameStateToken();
-        }
+        entry.dataVersion = dataVersion;
+        entry.frameToken = frameToken;
     }
 
     private SectionMesh upload(Entry entry, MeshData built) {
@@ -103,6 +89,7 @@ public class SectionMeshCache {
 
         if (entry.vertexBuffer == null || entry.vertexBuffer.size() < vertexBufferSize) {
             if (entry.vertexBuffer != null) {
+                entry.vertexBuffer.currentBuffer();
                 entry.vertexBuffer.close();
             }
             entry.vertexBuffer = new MappableRingBuffer(

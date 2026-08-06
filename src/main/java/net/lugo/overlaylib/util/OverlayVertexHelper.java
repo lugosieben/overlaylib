@@ -111,6 +111,24 @@ public class OverlayVertexHelper {
         squareFromTriags(buffer, fixedAxis, fixedCoord, firstAxisStart, secondAxisStart, 1f, r, g, b, uStart, vStart, uEnd, vEnd, rotation);
     }
 
+    public static void texturedSquareAtY(
+            VertexConsumer buffer,
+            float x, float y, float z,
+            float r, float g, float b,
+            TextureSection section,
+            UVRotation rotation
+    ) {
+        squareFromTriags(
+                buffer,
+                FixedAxis.Y, y,
+                x, z,
+                r, g, b,
+                section.uStart(), section.vStart(),
+                section.uEnd(), section.vEnd(),
+                rotation
+        );
+    }
+
     private static float[] pointOnPlane(FixedAxis fixedAxis, float fixedCoord, float first, float second) {
         return switch (fixedAxis) {
             case X -> new float[]{fixedCoord, first, second};

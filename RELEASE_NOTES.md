@@ -1,4 +1,4 @@
 ## Performance Update
 
-- Cache overlay meshes per section instead of rebuilding every frame
+- Per-section mesh caching with `CachedMeshOverlayRenderer`
 - remove iris flicker fix  (incompatible with cached rendering)

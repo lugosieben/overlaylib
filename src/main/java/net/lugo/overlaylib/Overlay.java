@@ -2,7 +2,6 @@ package net.lugo.overlaylib;
 
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.lugo.overlaylib.test.OverlayTesting;
-import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.profiling.Profiler;
@@ -20,8 +19,6 @@ public class Overlay {
 
     private final OverlayRenderer renderer;
     private final OverlayManager overlayManager;
-    private final SectionMeshCache meshCache;
-    private int maxMeshBuildsPerFrame = 16;
     private int chunkScanRadius;
     private int chunkScanRadiusVertical;
     private boolean active = true;
@@ -42,7 +39,6 @@ public class Overlay {
         this.chunkScanRadius = initialChunkScanRadius;
         this.chunkScanRadiusVertical = initialChunkScanRadiusVertical;
         this.overlayManager = manager;
-        this.meshCache = new SectionMeshCache(renderer);
         overlayManager.setChunkScanRadius(chunkScanRadius);
         overlayManager.setChunkScanRadiusVertical(chunkScanRadiusVertical);
         OverlayTesting.report("overlay", () -> "created radius=" + initialChunkScanRadius + "/" + initialChunkScanRadiusVertical);
@@ -50,10 +46,6 @@ public class Overlay {
 
     public OverlayManager getOverlayManager() {
         return overlayManager;
-    }
-
-    public void setMaxMeshBuildsPerFrame(int maxMeshBuildsPerFrame) {
-        this.maxMeshBuildsPerFrame = Math.max(1, maxMeshBuildsPerFrame);
     }
 
     public void setRenderFilter(BooleanSupplier renderFilter) {
@@ -68,7 +60,7 @@ public class Overlay {
     public void setActive(boolean isActive) {
         this.active = isActive;
         overlayManager.setActive(isActive);
-        meshCache.clearAll();
+        renderer.clearCache();
         if (isActive) {
             overlayManager.setChunkScanRadius(chunkScanRadius);
             overlayManager.setChunkScanRadiusVertical(chunkScanRadiusVertical);
@@ -113,10 +105,6 @@ public class Overlay {
         prepareSectionsIfNeeded();
 
         boolean reportThisFrame = OverlayTesting.shouldReport() && (++frameCounter % 120 == 0);
-        int drawnSections = 0;
-        int builtSections = 0;
-        int missingSections = 0;
-        int consideredSections = 0;
 
         int playerChunkX = SectionPos.blockToSectionCoord(MC.player.getBlockX());
         int playerChunkZ = SectionPos.blockToSectionCoord(MC.player.getBlockZ());
@@ -137,44 +125,13 @@ public class Overlay {
             sectionsInRadius = getSectionsInRadius(playerChunkX, playerChunkY, playerChunkZ, effectiveChunkRadius, effectiveVerticalRadius, minSectionY, maxSectionY);
         }
 
-        long frameToken = renderer.getFrameStateToken();
-        int meshBuildsLeft = maxMeshBuildsPerFrame;
-
-        for (SectionPos sectionPos : sectionsInRadius) {
-            consideredSections++;
-            long dataVersion = overlayManager.getSectionVersion(sectionPos);
-            if (!meshCache.isCurrent(sectionPos, dataVersion, frameToken)) {
-                if (meshBuildsLeft > 0) {
-                    OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
-                    if (blocks == null) {
-                        if (reportThisFrame) {
-                            missingSections++;
-                        }
-                        meshCache.remove(sectionPos);
-                        continue;
-                    }
-
-                    long freshDataVersion = overlayManager.getSectionVersion(sectionPos);
-                    meshCache.build(sectionPos, freshDataVersion, blocks);
-                    meshBuildsLeft--;
-                    builtSections++;
-                } else {
-                    continue;
-                }
-            }
-            SectionMeshCache.SectionMesh mesh = meshCache.get(sectionPos);
-            if (mesh == null || mesh.isEmpty()) {
-                continue;
-            }
-            renderer.drawSection(sectionPos, mesh);
-            drawnSections++;
-        }
+        OverlayRenderer.RenderResult result = renderer.renderSections(overlayManager, sectionsInRadius);
 
         if (reportThisFrame) {
-            int finalDrawnSections = drawnSections;
-            int finalBuiltSections = builtSections;
-            int finalMissingSections = missingSections;
-            int finalConsideredSections = consideredSections;
+            int finalDrawnSections = result.drawnSections();
+            int finalBuiltSections = result.builtSections();
+            int finalMissingSections = result.missingSections();
+            int finalConsideredSections = result.consideredSections();
             OverlayTesting.report("overlay", () -> "frameSummary consideredSections=" + finalConsideredSections
                     + ", drawnSections=" + finalDrawnSections + ", builtSections=" + finalBuiltSections
                     + ", missingSections=" + finalMissingSections);

@@ -7,7 +7,7 @@ import net.lugo.overlaylib.util.UVRotation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
-public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRenderer {
+public class CamFacingTextureOverlayRenderer extends TextureOverlayRenderer {
     private static final Minecraft MC = Minecraft.getInstance();
 
     private static final float EPSILON = 1E-3f;
@@ -31,9 +31,10 @@ public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRendere
 
     @Override
     protected void addVertices(float x, float y, float z, OverlayRendererBlockData data) {
-        OverlayVertexHelper.texturedSquareAtY(
+        OverlayVertexHelper.texturedSquare(
                 buffer,
-                x, y + 1f + EPSILON, z,
+                OverlayVertexHelper.FixedAxis.Y, y + 1f + EPSILON,
+                x, z,
                 data.r(), data.g(), data.b(),
                 data.textureSection(),
                 uvRotation

@@ -1,8 +1,11 @@
-package net.lugo.overlaylib;
+package net.lugo.overlaylib.renderers;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.MeshData;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.lugo.overlaylib.OverlayManager;
+import net.lugo.overlaylib.OverlayRenderer;
+import net.lugo.overlaylib.SectionMeshCache;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;

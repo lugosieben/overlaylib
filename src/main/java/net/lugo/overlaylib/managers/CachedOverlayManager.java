@@ -45,6 +45,8 @@ public class CachedOverlayManager implements OverlayManager {
 
     private final Function<BlockPos, OverlayRendererBlockData> computeFunction;
 
+    private boolean closed;
+
     private int maxCacheSize;
     private int maxComputationsPerTick;
     private int chunkScanRadius;
@@ -366,6 +368,16 @@ public class CachedOverlayManager implements OverlayManager {
         importantSections.clear();
         sectionVersions.clear();
         OverlayTesting.report("cache", "cleared all cache state");
+    }
+
+    @Override
+    public void close() {
+        if (closed) return;
+        closed = true;
+        ACTIVE_CACHES.remove(this);
+        active = false;
+        clearAll();
+        OverlayTesting.report("cache", "closed");
     }
 
     private void bumpVersion(SectionPos sectionPos) {

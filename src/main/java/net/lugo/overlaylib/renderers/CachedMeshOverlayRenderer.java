@@ -25,6 +25,12 @@ public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
     }
 
     @Override
+    public void close() {
+        meshCache.clearAll();
+        super.close();
+    }
+
+    @Override
     public RenderResult renderSections(OverlayManager manager, List<SectionPos> sections) {
         if (!batchStarted) {
             return new RenderResult(sections.size(), 0, 0, 0);

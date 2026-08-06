@@ -171,6 +171,22 @@ public abstract class OverlayRenderer {
     public void clearCache() {
     }
 
+    public void close() {
+        ACTIVE_RENDERERS.remove(this);
+        RenderSystem.assertOnRenderThread();
+        if (frameVertexBuffer != null) {
+            frameVertexBuffer.currentBuffer();
+            frameVertexBuffer.close();
+            frameVertexBuffer = null;
+        }
+        if (currentPass != null) {
+            currentPass.close();
+            currentPass = null;
+        }
+        batchStarted = false;
+        textureSetup = null;
+    }
+
     public final void beginSection(SectionPos sectionPos) {
         buffer = new BufferBuilder(allocator, renderPipeline.getPrimitiveTopology(), Objects.requireNonNull(renderPipeline.getVertexFormatBinding(0)));
         sectionOrigin = sectionPos;

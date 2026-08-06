@@ -23,6 +23,7 @@ public class Overlay {
     private int chunkScanRadiusVertical;
     private boolean active = true;
     private boolean isRegistered = false;
+    private boolean isClosed = false;
     private BooleanSupplier renderFilter = () -> true;
 
     private int frameCounter;
@@ -58,6 +59,7 @@ public class Overlay {
     }
 
     public void setActive(boolean isActive) {
+        if (isClosed) return;
         this.active = isActive;
         overlayManager.setActive(isActive);
         renderer.clearCache();
@@ -66,13 +68,7 @@ public class Overlay {
             overlayManager.setChunkScanRadiusVertical(chunkScanRadiusVertical);
         }
         if (!isActive) {
-            lastPreparedPlayerChunkX = Integer.MIN_VALUE;
-            lastPreparedPlayerChunkZ = Integer.MIN_VALUE;
-            lastPreparedPlayerChunkY = Integer.MIN_VALUE;
-            lastPreparedEffectiveRadius = Integer.MIN_VALUE;
-            lastPreparedVerticalRadius = Integer.MIN_VALUE;
-            lastPreparedMinSectionY = Integer.MIN_VALUE;
-            lastPreparedMaxSectionY = Integer.MIN_VALUE;
+            resetPreparedState();
         }
         if (isActive) prepareSectionsIfNeeded();
         OverlayTesting.report("overlay", () -> "setActive=" + isActive + ", radius=" + chunkScanRadius);
@@ -202,6 +198,16 @@ public class Overlay {
         return verticalRadius == CHUNK_SCAN_RADIUS_VERTICAL_MAX || Math.abs(sectionY - playerSectionY) <= verticalRadius;
     }
 
+    private void resetPreparedState() {
+        lastPreparedPlayerChunkX = Integer.MIN_VALUE;
+        lastPreparedPlayerChunkZ = Integer.MIN_VALUE;
+        lastPreparedPlayerChunkY = Integer.MIN_VALUE;
+        lastPreparedEffectiveRadius = Integer.MIN_VALUE;
+        lastPreparedVerticalRadius = Integer.MIN_VALUE;
+        lastPreparedMinSectionY = Integer.MIN_VALUE;
+        lastPreparedMaxSectionY = Integer.MIN_VALUE;
+    }
+
     private static int getMinSectionY(int playerSectionY, int verticalRadius, int minSectionY) {
         return verticalRadius == CHUNK_SCAN_RADIUS_VERTICAL_MAX ? minSectionY : Math.max(minSectionY, playerSectionY - verticalRadius);
     }
@@ -211,11 +217,11 @@ public class Overlay {
     }
 
     public void register() {
-        if (isRegistered) return;
+        if (isRegistered || isClosed) return;
         isRegistered = true;
         OverlayTesting.report("overlay", "registered render hook");
         LevelRenderEvents.END_MAIN.register((context -> {
-            if (MC.player == null || MC.level == null || !active || !renderFilter.getAsBoolean()) return;
+            if (isClosed || MC.player == null || MC.level == null || !active || !renderFilter.getAsBoolean()) return;
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");
             profiler.push("render");
@@ -227,5 +233,17 @@ public class Overlay {
             profiler.pop();
             profiler.pop();
         }));
+    }
+
+    public void close() {
+        if (isClosed) return;
+        isClosed = true;
+        active = false;
+        renderFilter = () -> false;
+        overlayManager.setActive(false);
+        overlayManager.close();
+        renderer.close();
+        resetPreparedState();
+        OverlayTesting.report("overlay", () -> "closed");
     }
 }

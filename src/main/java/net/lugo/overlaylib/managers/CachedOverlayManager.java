@@ -125,6 +125,8 @@ public class CachedOverlayManager implements OverlayManager {
 
             removeOldEntries();
 
+            computePlayerArea();
+
             if (computeQueue.size() > maxComputationsPerTick * 4 && shouldReprioritize()) {
                 reprioritizeQueue();
             }
@@ -178,6 +180,19 @@ public class CachedOverlayManager implements OverlayManager {
         return true;
     }
 
+    private void computePlayerArea() {
+        @SuppressWarnings("DataFlowIssue")
+        SectionPos center = SectionPos.of(MC.player.blockPosition());
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                SectionPos sectionPos = SectionPos.of(center.x() + dx, center.y(), center.z() + dz);
+                if (!cache.containsKey(sectionPos) && !importantSections.contains(sectionPos)) {
+                    compute(sectionPos);
+                }
+            }
+        }
+    }
+
     private SectionPos pollImportantSection() {
         Iterator<SectionPos> iterator = importantSections.iterator();
         if (!iterator.hasNext()) {
@@ -195,10 +210,20 @@ public class CachedOverlayManager implements OverlayManager {
         int playerBlockY = MC.player.getBlockY();
         int playerBlockZ = MC.player.getBlockZ();
 
+        int playerSectionX = SectionPos.blockToSectionCoord(playerBlockX);
+        int playerSectionZ = SectionPos.blockToSectionCoord(playerBlockZ);
+        int maxHorizontalDistanceSquared = chunkScanRadius * chunkScanRadius;
+
         List<SectionPos> sections = new ArrayList<>();
         SectionPos pos;
         while ((pos = computeQueue.poll()) != null) {
-            sections.add(pos);
+            int dx = pos.x() - playerSectionX;
+            int dz = pos.z() - playerSectionZ;
+            if (dx * dx + dz * dz <= maxHorizontalDistanceSquared) {
+                sections.add(pos);
+            } else {
+                queuedSections.remove(pos);
+            }
         }
 
         sections.sort(Comparator.comparingDouble(a -> DistanceUtil.getDistanceSquared(a, playerBlockX, playerBlockY, playerBlockZ)));
@@ -336,8 +361,7 @@ public class CachedOverlayManager implements OverlayManager {
 
     public boolean clear(SectionPos sectionPos) {
         boolean removedCached = cache.remove(sectionPos) != null;
-        boolean removedQueued = queuedSections.remove(sectionPos);
-        if (removedCached || removedQueued) {
+        if (removedCached) {
             bumpVersion(sectionPos);
             OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
             return true;

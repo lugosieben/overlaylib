@@ -2,7 +2,6 @@ package net.lugo.overlaylib.renderers;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.MeshData;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.lugo.overlaylib.OverlayManager;
 import net.lugo.overlaylib.OverlayRenderer;
 import net.lugo.overlaylib.SectionMeshCache;
@@ -14,27 +13,10 @@ import java.util.List;
 
 public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
     private final SectionMeshCache meshCache;
-    private int maxMeshBuildsPerFrame = 16;
-    private int buildsLeftThisFrame;
 
     protected CachedMeshOverlayRenderer(RenderPipeline renderPipeline, Identifier texture) {
-        this(renderPipeline, texture, 16);
-    }
-
-    protected CachedMeshOverlayRenderer(RenderPipeline renderPipeline, Identifier texture, int maxMeshBuildsPerFrame) {
         super(renderPipeline, texture);
         this.meshCache = new SectionMeshCache();
-        setMaxMeshBuildsPerFrame(maxMeshBuildsPerFrame);
-    }
-
-    public void setMaxMeshBuildsPerFrame(int maxMeshBuildsPerFrame) {
-        this.maxMeshBuildsPerFrame = Math.max(1, maxMeshBuildsPerFrame);
-    }
-
-    @Override
-    public void startBatch(LevelRenderContext context) {
-        super.startBatch(context);
-        buildsLeftThisFrame = maxMeshBuildsPerFrame;
     }
 
     @Override
@@ -59,9 +41,6 @@ public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
             consideredSections++;
             long dataVersion = manager.getSectionVersion(sectionPos);
             if (!meshCache.isCurrent(sectionPos, dataVersion, frameToken)) {
-                if (buildsLeftThisFrame <= 0) {
-                    continue;
-                }
                 OverlayRendererBlockData[] blocks = manager.getSectionBlocks(sectionPos);
                 if (blocks == null) {
                     missingSections++;
@@ -70,7 +49,6 @@ public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
                 }
                 long freshDataVersion = manager.getSectionVersion(sectionPos);
                 buildMesh(sectionPos, freshDataVersion, blocks);
-                buildsLeftThisFrame--;
                 builtSections++;
             }
             SectionMeshCache.SectionMesh mesh = meshCache.get(sectionPos);

@@ -2,6 +2,7 @@ package net.lugo.overlaylib;
 
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.lugo.overlaylib.test.OverlayTesting;
+import net.lugo.overlaylib.util.RetiredGpuBuffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.profiling.Profiler;
@@ -221,6 +222,7 @@ public class Overlay {
         isRegistered = true;
         OverlayTesting.report("overlay", "registered render hook");
         LevelRenderEvents.END_MAIN.register((context -> {
+            RetiredGpuBuffers.onFrameEnd();
             if (isClosed || MC.player == null || MC.level == null || !active || !renderFilter.getAsBoolean()) return;
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.lugo.overlaylib.util.RetiredGpuBuffers;
 import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.core.SectionPos;
 import org.lwjgl.system.MemoryUtil;
@@ -43,7 +44,7 @@ public class SectionMeshCache {
 
         void close() {
             if (vertexBuffer != null) {
-                vertexBuffer.close();
+                RetiredGpuBuffers.retire(vertexBuffer);
                 vertexBuffer = null;
             }
             mesh = null;
@@ -89,8 +90,7 @@ public class SectionMeshCache {
 
         if (entry.vertexBuffer == null || entry.vertexBuffer.size() < vertexBufferSize) {
             if (entry.vertexBuffer != null) {
-                entry.vertexBuffer.currentBuffer();
-                entry.vertexBuffer.close();
+                RetiredGpuBuffers.retire(entry.vertexBuffer);
             }
             entry.vertexBuffer = new MappableRingBuffer(
                     () -> OverlayLib.MOD_ID + " section mesh",

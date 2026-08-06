@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.*;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.lugo.overlaylib.util.IrisFlickerFix;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.lugo.overlaylib.util.RetiredGpuBuffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.MappableRingBuffer;
@@ -183,8 +184,7 @@ public abstract class OverlayRenderer {
         ACTIVE_RENDERERS.remove(this);
         RenderSystem.assertOnRenderThread();
         if (frameVertexBuffer != null) {
-            frameVertexBuffer.currentBuffer();
-            frameVertexBuffer.close();
+            RetiredGpuBuffers.retire(frameVertexBuffer);
             frameVertexBuffer = null;
         }
         if (currentPass != null) {
@@ -261,8 +261,7 @@ public abstract class OverlayRenderer {
             return;
         }
         if (frameVertexBuffer != null) {
-            frameVertexBuffer.currentBuffer();
-            frameVertexBuffer.close();
+            RetiredGpuBuffers.retire(frameVertexBuffer);
         }
         frameVertexBuffer = new MappableRingBuffer(
                 () -> OverlayLib.MOD_ID + " overlay frame buffer",

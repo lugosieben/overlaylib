@@ -10,7 +10,11 @@ public class TextureOverlayRenderer extends CachedMeshOverlayRenderer {
     private static final float EPSILON = 1E-3f;
 
     public TextureOverlayRenderer(Identifier texture) {
-        super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture);
+        this(texture, true);
+    }
+
+    public TextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
+        super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture, doIrisFlickerFix);
     }
 
     @Override

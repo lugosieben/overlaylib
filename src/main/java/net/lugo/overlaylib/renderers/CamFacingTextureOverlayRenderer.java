@@ -14,7 +14,11 @@ public class CamFacingTextureOverlayRenderer extends TextureOverlayRenderer {
     private UVRotation uvRotation = UVRotation.NONE;
 
     public CamFacingTextureOverlayRenderer(Identifier texture) {
-        super(texture);
+        this(texture, true);
+    }
+
+    public CamFacingTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
+        super(texture, doIrisFlickerFix);
     }
 
     public final void startBatch(LevelRenderContext context) {

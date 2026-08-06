@@ -15,7 +15,11 @@ public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
     private final SectionMeshCache meshCache;
 
     protected CachedMeshOverlayRenderer(RenderPipeline renderPipeline, Identifier texture) {
-        super(renderPipeline, texture);
+        this(renderPipeline, texture, true);
+    }
+
+    protected CachedMeshOverlayRenderer(RenderPipeline renderPipeline, Identifier texture, boolean doIrisFlickerFix) {
+        super(renderPipeline, texture, doIrisFlickerFix);
         this.meshCache = new SectionMeshCache();
     }
 

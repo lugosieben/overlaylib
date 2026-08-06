@@ -46,7 +46,11 @@ public class SimpleSimpleTextureTest {
 		private static final float EPSILON = 1E-3f;
 
 		NonCachedSimpleTextureOverlayRenderer(Identifier texture) {
-			super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture);
+			this(texture, true);
+		}
+
+		NonCachedSimpleTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
+			super(RenderPipelines.POSITION_TEX_COLOR_FOG_TRIANGLES, texture, doIrisFlickerFix);
 		}
 
 		@Override

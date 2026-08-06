@@ -10,6 +10,7 @@ import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.*;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.lugo.overlaylib.util.IrisFlickerFix;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
@@ -62,9 +63,16 @@ public abstract class OverlayRenderer {
 
     private MappableRingBuffer frameVertexBuffer;
 
+    private final boolean doIrisFlickerFix;
+
     protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture) {
+        this(renderPipeline, texture, true);
+    }
+
+    protected OverlayRenderer(RenderPipeline renderPipeline, Identifier texture, boolean doIrisFlickerFix) {
         this.renderPipeline = renderPipeline;
         this.textureId = texture;
+        this.doIrisFlickerFix = doIrisFlickerFix;
         ACTIVE_RENDERERS.add(this);
     }
 
@@ -146,6 +154,8 @@ public abstract class OverlayRenderer {
         cameraX = camPos.x;
         cameraY = camPos.y;
         cameraZ = camPos.z;
+
+        IrisFlickerFix.getInstance().refresh(context.levelState().cameraRenderState.projectionMatrix);
 
         currentPass = null;
         drawPassUnavailable = false;
@@ -229,12 +239,23 @@ public abstract class OverlayRenderer {
     }
 
     private Matrix4f sectionModelView(SectionPos sectionPos) {
+        float translateY = (float) (-cameraY + sectionPos.minBlockY());
+        if (doIrisFlickerFix) {
+            translateY += IrisFlickerFix.getInstance().offset(distanceToSectionCenter(sectionPos));
+        }
         return new Matrix4f(RenderSystem.getModelViewMatrixCopy())
                 .mul(new Matrix4f().translation(
                         (float) (-cameraX + sectionPos.minBlockX()),
-                        (float) (-cameraY + sectionPos.minBlockY()),
+                        translateY,
                         (float) (-cameraZ + sectionPos.minBlockZ())
                 ));
+    }
+
+    private float distanceToSectionCenter(SectionPos sectionPos) {
+        float dx = (float) (sectionPos.minBlockX() + 8 - cameraX);
+        float dy = (float) (sectionPos.minBlockY() + 8 - cameraY);
+        float dz = (float) (sectionPos.minBlockZ() + 8 - cameraZ);
+        return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     private void ensureFrameBufferCapacity(int requiredBytes) {

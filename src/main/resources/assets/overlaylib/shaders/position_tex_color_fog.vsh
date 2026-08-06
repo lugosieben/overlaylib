@@ -23,10 +23,11 @@ out vec2 texCoord0;
 out vec4 vertexColor;
 
 void main() {
-    gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
+    vec3 cameraPosition = (ModelViewMat * vec4(Position, 1.0)).xyz;
+    gl_Position = ProjMat * vec4(cameraPosition, 1.0);
 
-    sphericalVertexDistance = fog_spherical_distance(Position);
-    cylindricalVertexDistance = fog_cylindrical_distance(Position);
+    sphericalVertexDistance = fog_spherical_distance(cameraPosition);
+    cylindricalVertexDistance = fog_cylindrical_distance(cameraPosition);
     texCoord0 = UV0;
     vertexColor = Color;
 }

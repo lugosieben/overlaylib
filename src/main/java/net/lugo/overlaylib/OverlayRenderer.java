@@ -155,8 +155,6 @@ public abstract class OverlayRenderer {
         cameraY = camPos.y;
         cameraZ = camPos.z;
 
-        IrisFlickerFix.getInstance().refresh(context.levelState().cameraRenderState.projectionMatrix);
-
         currentPass = null;
         drawPassUnavailable = false;
         batchStarted = true;

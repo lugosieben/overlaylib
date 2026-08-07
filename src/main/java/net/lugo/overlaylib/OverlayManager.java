@@ -22,5 +22,7 @@ public interface OverlayManager {
 
     default void setChunkScanRadiusVertical(int radius) {}
 
+    default void clearCache() {}
+
     default void close() {}
 }

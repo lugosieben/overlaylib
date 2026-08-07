@@ -375,6 +375,11 @@ public class CachedOverlayManager implements OverlayManager {
     }
 
     @Override
+    public void clearCache() {
+        clearAll();
+    }
+
+    @Override
     public void close() {
         if (closed) return;
         closed = true;

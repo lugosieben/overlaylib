@@ -1,5 +1,6 @@
 package net.lugo.overlaylib;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.lugo.overlaylib.test.OverlayTesting;
 import net.lugo.overlaylib.util.RetiredGpuBuffers;
@@ -235,6 +236,13 @@ public class Overlay {
             profiler.pop();
             profiler.pop();
         }));
+
+        ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
+            if (isClosed) return;
+            overlayManager.clearCache();
+            renderer.clearCache();
+            resetPreparedState();
+        });
     }
 
     public void close() {

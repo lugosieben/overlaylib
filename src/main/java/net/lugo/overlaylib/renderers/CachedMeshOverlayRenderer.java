@@ -48,6 +48,9 @@ public abstract class CachedMeshOverlayRenderer extends OverlayRenderer {
         long frameToken = getFrameStateToken();
 
         for (SectionPos sectionPos : sections) {
+            if (isSectionNotVisible(sectionPos)) {
+                continue;
+            }
             consideredSections++;
             long dataVersion = manager.getSectionVersion(sectionPos);
             if (!meshCache.isCurrent(sectionPos, dataVersion, frameToken)) {

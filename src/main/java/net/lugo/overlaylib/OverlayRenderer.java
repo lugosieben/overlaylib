@@ -45,7 +45,6 @@ public abstract class OverlayRenderer {
     private TextureSetup textureSetup;
 
     private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
-    private static final Vector3f MODEL_OFFSET = new Vector3f();
     private static final Matrix4f TEXTURE_MATRIX = new Matrix4f();
 
     private static final Set<OverlayRenderer> ACTIVE_RENDERERS = ConcurrentHashMap.newKeySet();
@@ -109,6 +108,9 @@ public abstract class OverlayRenderer {
 
         try {
             for (SectionPos sectionPos : sections) {
+                if (isSectionNotVisible(sectionPos)) {
+                    continue;
+                }
                 consideredSections++;
                 OverlayRendererBlockData[] blocks = manager.getSectionBlocks(sectionPos);
                 if (blocks == null) {
@@ -168,9 +170,10 @@ public abstract class OverlayRenderer {
         drawPassUnavailable = false;
         batchStarted = true;
 
-        Frustum cullFrustum = context.levelState().cameraRenderState.cullFrustum;
-        frustum = new Frustum(cullFrustum);
+        //noinspection resource
+        frustum = new Frustum(context.gameRenderer().mainCamera().getCullFrustum());
         frustum.prepare(cameraX, cameraY, cameraZ);
+        frustum.offsetToFullyIncludeCameraCube(8);
     }
 
     public void endBatch() {
@@ -244,26 +247,25 @@ public abstract class OverlayRenderer {
 
     public final void drawSection(SectionPos sectionPos, GpuBufferSlice slice, int indexCount) {
         if (!batchStarted || slice == null || indexCount == 0 || drawPassUnavailable) return;
-        if (!isSectionVisible(sectionPos)) return;
+        if (isSectionNotVisible(sectionPos)) return;
 
         float translateY = (float) (-cameraY + sectionPos.minBlockY());
         if (doIrisFlickerFix) {
             translateY += IrisFlickerFix.getInstance().offset(distanceToSectionCenter(sectionPos));
         }
-        MODEL_OFFSET.set(
+        drawMesh(slice, indexCount, new Vector3f(
                 (float) (-cameraX + sectionPos.minBlockX()),
                 translateY,
                 (float) (-cameraZ + sectionPos.minBlockZ())
-        );
-        drawMesh(slice, indexCount);
+        ));
     }
 
-    private boolean isSectionVisible(SectionPos sectionPos) {
-        if (frustum == null) return true;
+    protected boolean isSectionNotVisible(SectionPos sectionPos) {
+        if (frustum == null) return false;
         double minX = sectionPos.minBlockX();
         double minY = sectionPos.minBlockY();
         double minZ = sectionPos.minBlockZ();
-        return frustum.isVisible(new AABB(minX, minY, minZ, minX + 16, minY + 16, minZ + 16));
+        return !frustum.isVisible(new AABB(minX, minY, minZ, minX + 16, minY + 16, minZ + 16));
     }
 
     private float distanceToSectionCenter(SectionPos sectionPos) {
@@ -295,7 +297,7 @@ public abstract class OverlayRenderer {
         return slice;
     }
 
-    private void drawMesh(GpuBufferSlice slice, int indexCount) {
+    private void drawMesh(GpuBufferSlice slice, int indexCount, Vector3f sectionOffset) {
         if (drawPassUnavailable) return;
 
         if (currentPass == null) {
@@ -321,7 +323,7 @@ public abstract class OverlayRenderer {
         }
 
         GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
-                .writeTransform(cameraModelView, COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
+                .writeTransform(cameraModelView, COLOR_MODULATOR, sectionOffset, TEXTURE_MATRIX);
         currentPass.setUniform("DynamicTransforms", dynamicTransforms);
 
         var shapeIndexBuffer = RenderSystem.getSequentialBuffer(renderPipeline.getPrimitiveTopology());

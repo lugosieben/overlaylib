@@ -2,10 +2,10 @@ package net.lugo.overlaylib;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.lugo.overlaylib.util.RetiredGpuBuffers;
-import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.core.SectionPos;
 import org.lwjgl.system.MemoryUtil;
 
@@ -42,7 +42,7 @@ public class SectionMeshCache {
     private static final class Entry {
         SectionMesh mesh;
         long dataVersion = Long.MIN_VALUE;
-        MappableRingBuffer vertexBuffer;
+        GpuBuffer vertexBuffer;
 
         void close() {
             if (vertexBuffer != null) {
@@ -73,8 +73,6 @@ public class SectionMeshCache {
         if (entry == null) {
             entry = new Entry();
             entries.put(key, entry);
-        } else if (entry.vertexBuffer != null) {
-            entry.vertexBuffer.rotate();
         }
 
         if (built == null) {
@@ -90,18 +88,16 @@ public class SectionMeshCache {
         VertexFormat format = drawState.format();
         int vertexBufferSize = drawState.vertexCount() * format.getVertexSize();
 
-        if (entry.vertexBuffer == null || entry.vertexBuffer.size() < vertexBufferSize) {
-            if (entry.vertexBuffer != null) {
-                RetiredGpuBuffers.retire(entry.vertexBuffer);
-            }
-            entry.vertexBuffer = new MappableRingBuffer(
-                    () -> OverlayLib.MOD_ID + " section mesh",
-                    GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_MAP_WRITE,
-                    vertexBufferSize
-            );
+        if (entry.vertexBuffer != null) {
+            RetiredGpuBuffers.retire(entry.vertexBuffer);
         }
+        entry.vertexBuffer = RenderSystem.getDevice().createBuffer(
+                () -> OverlayLib.MOD_ID + " section mesh",
+                GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_MAP_WRITE,
+                vertexBufferSize
+        );
 
-        GpuBufferSlice slice = entry.vertexBuffer.currentBuffer().slice(0, built.vertexBuffer().remaining());
+        GpuBufferSlice slice = entry.vertexBuffer.slice(0, built.vertexBuffer().remaining());
         try (GpuBufferSlice.MappedView mappedView = slice.map(false, true)) {
             MemoryUtil.memCopy(built.vertexBuffer(), mappedView.data());
         }

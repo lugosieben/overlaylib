@@ -2,6 +2,7 @@ package net.lugo.overlaylib.managers;
 
 import net.lugo.overlaylib.OverlayManager;
 import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 
@@ -10,10 +11,17 @@ import java.util.List;
 import java.util.function.Function;
 
 public class SimpleOverlayManager implements OverlayManager {
+    private static final Minecraft MC = Minecraft.getInstance();
+
     private final Function<BlockPos, OverlayRendererBlockData> computeFunction;
 
     public SimpleOverlayManager(Function<BlockPos, OverlayRendererBlockData> computeFunction) {
         this.computeFunction = computeFunction;
+    }
+
+    @Override
+    public long getSectionVersion(SectionPos sectionPos) {
+        return MC.level == null ? 0L : MC.level.getGameTime();
     }
 
     @Override

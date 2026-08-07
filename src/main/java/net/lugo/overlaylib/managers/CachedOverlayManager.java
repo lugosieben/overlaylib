@@ -41,8 +41,11 @@ public class CachedOverlayManager implements OverlayManager {
     private final Queue<SectionPos> computeQueue = new ConcurrentLinkedQueue<>();
     private final Set<SectionPos> queuedSections = ConcurrentHashMap.newKeySet();
     private final Set<SectionPos> importantSections = ConcurrentHashMap.newKeySet();
+    private final Map<SectionPos, Long> sectionVersions = new ConcurrentHashMap<>();
 
     private final Function<BlockPos, OverlayRendererBlockData> computeFunction;
+
+    private boolean closed;
 
     private int maxCacheSize;
     private int maxComputationsPerTick;
@@ -104,6 +107,11 @@ public class CachedOverlayManager implements OverlayManager {
         return null;
     }
 
+    @Override
+    public long getSectionVersion(SectionPos sectionPos) {
+        return sectionVersions.getOrDefault(sectionPos, 0L);
+    }
+
 
     public void processQueue() {
         if (isProcessing.compareAndSet(false, true)) {
@@ -117,21 +125,15 @@ public class CachedOverlayManager implements OverlayManager {
 
             removeOldEntries();
 
+            computePlayerArea();
+
             if (computeQueue.size() > maxComputationsPerTick * 4 && shouldReprioritize()) {
                 reprioritizeQueue();
             }
 
             int processed = 0;
             while (processed < maxComputationsPerTick && !computeQueue.isEmpty()) {
-                SectionPos sectionPos;
-                if (!importantSections.isEmpty()) {
-                    sectionPos = pollImportantSection();
-                    if (sectionPos == null) {
-                        sectionPos = computeQueue.poll();
-                    }
-                } else {
-                    sectionPos = computeQueue.poll();
-                }
+                SectionPos sectionPos = computeQueue.poll();
                 if (sectionPos == null) break;
                 queuedSections.remove(sectionPos);
                 if (!cache.containsKey(sectionPos)) {
@@ -169,15 +171,17 @@ public class CachedOverlayManager implements OverlayManager {
         return true;
     }
 
-    private SectionPos pollImportantSection() {
-        Iterator<SectionPos> iterator = importantSections.iterator();
-        if (!iterator.hasNext()) {
-            return null;
+    private void computePlayerArea() {
+        @SuppressWarnings("DataFlowIssue")
+        SectionPos center = SectionPos.of(MC.player.blockPosition());
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                SectionPos sectionPos = SectionPos.of(center.x() + dx, center.y(), center.z() + dz);
+                if (!cache.containsKey(sectionPos) && !importantSections.contains(sectionPos)) {
+                    compute(sectionPos);
+                }
+            }
         }
-
-        SectionPos sectionPos = iterator.next();
-        iterator.remove();
-        return sectionPos;
     }
 
     private void reprioritizeQueue() {
@@ -186,10 +190,20 @@ public class CachedOverlayManager implements OverlayManager {
         int playerBlockY = MC.player.getBlockY();
         int playerBlockZ = MC.player.getBlockZ();
 
+        int playerSectionX = SectionPos.blockToSectionCoord(playerBlockX);
+        int playerSectionZ = SectionPos.blockToSectionCoord(playerBlockZ);
+        int maxHorizontalDistanceSquared = chunkScanRadius * chunkScanRadius;
+
         List<SectionPos> sections = new ArrayList<>();
         SectionPos pos;
         while ((pos = computeQueue.poll()) != null) {
-            sections.add(pos);
+            int dx = pos.x() - playerSectionX;
+            int dz = pos.z() - playerSectionZ;
+            if (dx * dx + dz * dz <= maxHorizontalDistanceSquared) {
+                sections.add(pos);
+            } else {
+                queuedSections.remove(pos);
+            }
         }
 
         sections.sort(Comparator.comparingDouble(a -> DistanceUtil.getDistanceSquared(a, playerBlockX, playerBlockY, playerBlockZ)));
@@ -314,6 +328,7 @@ public class CachedOverlayManager implements OverlayManager {
 
         OverlayRendererBlockData[] blocksArray = renderableBlocks.toArray(OverlayRendererBlockData[]::new);
         cache.put(sectionPos, new CacheSectionPosEntry(sectionPos, blocksArray, System.currentTimeMillis()));
+        bumpVersion(sectionPos);
 
         if (OverlayTesting.shouldReport() && (++computeSummaryCounter % 200 == 0)) {
             int blockCount = blocksArray.length;
@@ -326,8 +341,10 @@ public class CachedOverlayManager implements OverlayManager {
 
     public boolean clear(SectionPos sectionPos) {
         boolean removedCached = cache.remove(sectionPos) != null;
-        boolean removedQueued = queuedSections.remove(sectionPos);
+        boolean removedQueued = queuedSections.remove(sectionPos) | computeQueue.remove(sectionPos);
         if (removedCached || removedQueued) {
+            bumpVersion(sectionPos);
+            importantSections.add(sectionPos);
             OverlayTesting.report("cache", () -> "cleared section " + sectionPos.x() + "," + sectionPos.y() + "," + sectionPos.z());
             return true;
         }
@@ -335,9 +352,7 @@ public class CachedOverlayManager implements OverlayManager {
     }
 
     public void refresh(SectionPos sectionPos) {
-        if (clear(sectionPos)) {
-            importantSections.add(sectionPos);
-        }
+        clear(sectionPos);
     }
 
     public boolean clear(BlockPos blockPos) {
@@ -355,7 +370,27 @@ public class CachedOverlayManager implements OverlayManager {
         computeQueue.clear();
         queuedSections.clear();
         importantSections.clear();
+        sectionVersions.clear();
         OverlayTesting.report("cache", "cleared all cache state");
+    }
+
+    @Override
+    public void clearCache() {
+        clearAll();
+    }
+
+    @Override
+    public void close() {
+        if (closed) return;
+        closed = true;
+        ACTIVE_CACHES.remove(this);
+        active = false;
+        clearAll();
+        OverlayTesting.report("cache", "closed");
+    }
+
+    private void bumpVersion(SectionPos sectionPos) {
+        sectionVersions.merge(sectionPos, 1L, Long::sum);
     }
 
     private static void ensureTickRegistered() {

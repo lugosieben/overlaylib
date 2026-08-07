@@ -54,7 +54,7 @@ public class OverlayVertexHelper {
         }
     }
 
-    public static void rectFromTriags(
+    public static void rect(
             VertexConsumer buffer,
             FixedAxis fixedAxis,
             float fixedCoord,
@@ -74,7 +74,7 @@ public class OverlayVertexHelper {
         triangle(buffer, p3[0], p3[1], p3[2], p4[0], p4[1], p4[2], p1[0], p1[1], p1[2], r, g, b, uEnd, vEnd, uStart, vStart, rotation);
     }
 
-    public static void squareFromTriags(
+    public static void square(
             VertexConsumer buffer,
             FixedAxis fixedAxis,
             float fixedCoord,
@@ -85,7 +85,7 @@ public class OverlayVertexHelper {
             float uEnd,   float vEnd,
             UVRotation rotation
     ) {
-        rectFromTriags(
+        rect(
                 buffer,
                 fixedAxis,
                 fixedCoord,
@@ -98,7 +98,7 @@ public class OverlayVertexHelper {
         );
     }
 
-    public static void squareFromTriags(
+    public static void square(
             VertexConsumer buffer,
             FixedAxis fixedAxis,
             float fixedCoord,
@@ -108,7 +108,27 @@ public class OverlayVertexHelper {
             float uEnd,   float vEnd,
             UVRotation rotation
     ) {
-        squareFromTriags(buffer, fixedAxis, fixedCoord, firstAxisStart, secondAxisStart, 1f, r, g, b, uStart, vStart, uEnd, vEnd, rotation);
+        square(buffer, fixedAxis, fixedCoord, firstAxisStart, secondAxisStart, 1f, r, g, b, uStart, vStart, uEnd, vEnd, rotation);
+    }
+
+    public static void texturedSquare(
+            VertexConsumer buffer,
+            FixedAxis fixedAxis,
+            float fixedCoord,
+            float firstAxisStart, float secondAxisStart,
+            float r, float g, float b,
+            TextureSection section,
+            UVRotation rotation
+    ) {
+        square(
+                buffer,
+                fixedAxis, fixedCoord,
+                firstAxisStart, secondAxisStart,
+                r, g, b,
+                section.uStart(), section.vStart(),
+                section.uEnd(), section.vEnd(),
+                rotation
+        );
     }
 
     private static float[] pointOnPlane(FixedAxis fixedAxis, float fixedCoord, float first, float second) {

@@ -1,8 +1,9 @@
 package net.lugo.overlaylib;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.lugo.overlaylib.test.OverlayTesting;
-import net.lugo.overlaylib.util.OverlayRendererBlockData;
+import net.lugo.overlaylib.util.RetiredGpuBuffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.profiling.Profiler;
@@ -24,6 +25,7 @@ public class Overlay {
     private int chunkScanRadiusVertical;
     private boolean active = true;
     private boolean isRegistered = false;
+    private boolean isClosed = false;
     private BooleanSupplier renderFilter = () -> true;
 
     private int frameCounter;
@@ -59,20 +61,16 @@ public class Overlay {
     }
 
     public void setActive(boolean isActive) {
+        if (isClosed) return;
         this.active = isActive;
         overlayManager.setActive(isActive);
+        renderer.clearCache();
         if (isActive) {
             overlayManager.setChunkScanRadius(chunkScanRadius);
             overlayManager.setChunkScanRadiusVertical(chunkScanRadiusVertical);
         }
         if (!isActive) {
-            lastPreparedPlayerChunkX = Integer.MIN_VALUE;
-            lastPreparedPlayerChunkZ = Integer.MIN_VALUE;
-            lastPreparedPlayerChunkY = Integer.MIN_VALUE;
-            lastPreparedEffectiveRadius = Integer.MIN_VALUE;
-            lastPreparedVerticalRadius = Integer.MIN_VALUE;
-            lastPreparedMinSectionY = Integer.MIN_VALUE;
-            lastPreparedMaxSectionY = Integer.MIN_VALUE;
+            resetPreparedState();
         }
         if (isActive) prepareSectionsIfNeeded();
         OverlayTesting.report("overlay", () -> "setActive=" + isActive + ", radius=" + chunkScanRadius);
@@ -105,9 +103,6 @@ public class Overlay {
         prepareSectionsIfNeeded();
 
         boolean reportThisFrame = OverlayTesting.shouldReport() && (++frameCounter % 120 == 0);
-        int renderedBlocks = 0;
-        int missingSections = 0;
-        int consideredSections = 0;
 
         int playerChunkX = SectionPos.blockToSectionCoord(MC.player.getBlockX());
         int playerChunkZ = SectionPos.blockToSectionCoord(MC.player.getBlockZ());
@@ -128,29 +123,16 @@ public class Overlay {
             sectionsInRadius = getSectionsInRadius(playerChunkX, playerChunkY, playerChunkZ, effectiveChunkRadius, effectiveVerticalRadius, minSectionY, maxSectionY);
         }
 
-        for (SectionPos sectionPos : sectionsInRadius) {
-            consideredSections++;
-            OverlayRendererBlockData[] blocks = overlayManager.getSectionBlocks(sectionPos);
-            if (blocks == null) {
-                if (reportThisFrame) {
-                    missingSections++;
-                }
-                continue;
-            }
-            if (reportThisFrame) {
-                renderedBlocks += blocks.length;
-            }
-            for (OverlayRendererBlockData blockData : blocks) {
-                renderer.addBlock(blockData);
-            }
-        }
+        OverlayRenderer.RenderResult result = renderer.renderSections(overlayManager, sectionsInRadius);
 
         if (reportThisFrame) {
-            int finalRenderedBlocks = renderedBlocks;
-            int finalMissingSections = missingSections;
-            int finalConsideredSections = consideredSections;
+            int finalDrawnSections = result.drawnSections();
+            int finalBuiltSections = result.builtSections();
+            int finalMissingSections = result.missingSections();
+            int finalConsideredSections = result.consideredSections();
             OverlayTesting.report("overlay", () -> "frameSummary consideredSections=" + finalConsideredSections
-                    + ", renderedBlocks=" + finalRenderedBlocks + ", pendingSections=" + finalMissingSections);
+                    + ", drawnSections=" + finalDrawnSections + ", builtSections=" + finalBuiltSections
+                    + ", missingSections=" + finalMissingSections);
         }
     }
 
@@ -218,6 +200,16 @@ public class Overlay {
         return verticalRadius == CHUNK_SCAN_RADIUS_VERTICAL_MAX || Math.abs(sectionY - playerSectionY) <= verticalRadius;
     }
 
+    private void resetPreparedState() {
+        lastPreparedPlayerChunkX = Integer.MIN_VALUE;
+        lastPreparedPlayerChunkZ = Integer.MIN_VALUE;
+        lastPreparedPlayerChunkY = Integer.MIN_VALUE;
+        lastPreparedEffectiveRadius = Integer.MIN_VALUE;
+        lastPreparedVerticalRadius = Integer.MIN_VALUE;
+        lastPreparedMinSectionY = Integer.MIN_VALUE;
+        lastPreparedMaxSectionY = Integer.MIN_VALUE;
+    }
+
     private static int getMinSectionY(int playerSectionY, int verticalRadius, int minSectionY) {
         return verticalRadius == CHUNK_SCAN_RADIUS_VERTICAL_MAX ? minSectionY : Math.max(minSectionY, playerSectionY - verticalRadius);
     }
@@ -227,24 +219,41 @@ public class Overlay {
     }
 
     public void register() {
-        if (isRegistered) return;
+        if (isRegistered || isClosed) return;
         isRegistered = true;
         OverlayTesting.report("overlay", "registered render hook");
         LevelRenderEvents.END_MAIN.register((context -> {
-            if (MC.player == null || MC.level == null || !active || !renderFilter.getAsBoolean()) return;
+            RetiredGpuBuffers.onFrameEnd();
+            if (isClosed || MC.player == null || MC.level == null || !active || !renderFilter.getAsBoolean()) return;
             ProfilerFiller profiler = Profiler.get();
             profiler.push("overlaylib");
             profiler.push("render");
-            profiler.push("startBatch");
             renderer.startBatch(context);
-            profiler.popPush("render");
+            profiler.popPush("draw");
             renderAllBlocks();
             profiler.popPush("endBatch");
             renderer.endBatch();
             profiler.pop();
-            renderer.uploadThenDraw();
-            profiler.pop();
             profiler.pop();
         }));
+
+        ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
+            if (isClosed) return;
+            overlayManager.clearCache();
+            renderer.clearCache();
+            resetPreparedState();
+        });
+    }
+
+    public void close() {
+        if (isClosed) return;
+        isClosed = true;
+        active = false;
+        renderFilter = () -> false;
+        overlayManager.setActive(false);
+        overlayManager.close();
+        renderer.close();
+        resetPreparedState();
+        OverlayTesting.report("overlay", () -> "closed");
     }
 }

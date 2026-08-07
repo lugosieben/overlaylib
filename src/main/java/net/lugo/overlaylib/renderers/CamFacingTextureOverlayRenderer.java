@@ -7,14 +7,18 @@ import net.lugo.overlaylib.util.UVRotation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
-public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRenderer {
+public class CamFacingTextureOverlayRenderer extends TextureOverlayRenderer {
     private static final Minecraft MC = Minecraft.getInstance();
 
     private static final float EPSILON = 1E-3f;
     private UVRotation uvRotation = UVRotation.NONE;
 
-    public CamFacingTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix, double nearbyBlockDistanceSq) {
-        super(texture, doIrisFlickerFix, nearbyBlockDistanceSq);
+    public CamFacingTextureOverlayRenderer(Identifier texture) {
+        this(texture, true);
+    }
+
+    public CamFacingTextureOverlayRenderer(Identifier texture, boolean doIrisFlickerFix) {
+        super(texture, doIrisFlickerFix);
     }
 
     public final void startBatch(LevelRenderContext context) {
@@ -25,16 +29,18 @@ public class CamFacingTextureOverlayRenderer extends SimpleTextureOverlayRendere
     }
 
     @Override
-    protected void addVertices(float worldX, float worldY, float worldZ, OverlayRendererBlockData data) {
-        float y = worldY + 1f + EPSILON;
+    public long getFrameStateToken() {
+        return uvRotation == null ? 0L : uvRotation.ordinal();
+    }
 
-        OverlayVertexHelper.squareFromTriags(
+    @Override
+    protected void addVertices(float x, float y, float z, OverlayRendererBlockData data) {
+        OverlayVertexHelper.texturedSquare(
                 buffer,
-                OverlayVertexHelper.FixedAxis.Y, y,
-                worldX, worldZ,
+                OverlayVertexHelper.FixedAxis.Y, y + 1f + EPSILON,
+                x, z,
                 data.r(), data.g(), data.b(),
-                data.textureSection().uStart(), data.textureSection().vStart(),
-                data.textureSection().uEnd(), data.textureSection().vEnd(),
+                data.textureSection(),
                 uvRotation
         );
     }

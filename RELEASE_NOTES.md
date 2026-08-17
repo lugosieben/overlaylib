@@ -1,4 +1,1 @@
-- Per-section mesh caching with `CachedMeshOverlayRenderer` -> huge performance gain
-- rework iris flicker fix via `IrisFlickerFix` (cache-compatible, distance-based draw-time offset)
-- naming refactors of several methods
-- queue computation ordering improvements
+- Color instead of r,g,b floats

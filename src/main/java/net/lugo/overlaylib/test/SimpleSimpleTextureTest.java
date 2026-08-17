@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.awt.Color;
 import java.util.List;
 import java.util.Map;
 
@@ -59,7 +60,7 @@ public class SimpleSimpleTextureTest {
 					buffer,
 					OverlayVertexHelper.FixedAxis.Y, y + 1f + EPSILON,
 					x, z,
-					data.r(), data.g(), data.b(),
+					data.color(),
 					data.textureSection(),
 					UVRotation.NONE
 			);
@@ -77,15 +78,19 @@ public class SimpleSimpleTextureTest {
 		if (!MC.level.getBlockState(abovePos).isAir()) return OverlayRendererBlockData.NO_RENDER;
 		if (!state.isSolidRender()) return OverlayRendererBlockData.NO_RENDER;
 
-		int hash = (pos.getX() * 17) ^ (pos.getY() * 31) ^ (pos.getZ() * 13);
-		hash ^= (hash >>> 16);
+		int hash = pos.hashCode();
+		hash ^= hash >>> 16;
+		hash *= 0x45d9f3b;
+		hash ^= hash >>> 16;
 
-		float r = 0.35f + (((hash >> 6) & 0x3F) / 63.0f) * 0.65f;
-		float g = 0.35f + (((hash >> 12) & 0x3F) / 63.0f) * 0.65f;
-		float b = 0.35f + ((hash & 0x3F) / 63.0f) * 0.65f;
+		float r = ((hash) & 0xFF) / 255.0f;
+		float g = ((hash >> 8) & 0xFF) / 255.0f;
+		float b = ((hash >> 16) & 0xFF) / 255.0f;
+		float a = ((hash >>> 24) & 0xFF) / 255.0f;
+		Color color = new Color(r, g, b, a);
 
 		int textureIndex = ((hash & 1) | (((hash >> 1) & 1) << 1));
-		return new OverlayRendererBlockData(pos, r, g, b, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex));
+		return new OverlayRendererBlockData(pos, color, 0.0f, TEST_TEXTURE_OPTIONS.get(textureIndex));
 	}
 
 	private static final class SimpleSimpleTextureTestInstance extends OverlayTesting.OverlayTest {

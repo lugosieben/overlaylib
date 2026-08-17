@@ -39,7 +39,7 @@ public class CamFacingTextureOverlayRenderer extends TextureOverlayRenderer {
                 buffer,
                 OverlayVertexHelper.FixedAxis.Y, y + 1f + EPSILON,
                 x, z,
-                data.r(), data.g(), data.b(),
+                data.color(),
                 data.textureSection(),
                 uvRotation
         );

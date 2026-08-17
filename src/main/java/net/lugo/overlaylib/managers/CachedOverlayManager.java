@@ -318,7 +318,7 @@ public class CachedOverlayManager implements OverlayManager {
                     }
                     if (data.shouldRender()) {
                         if (data.pos() == mutableBlockPos) {
-                            data = new OverlayRendererBlockData(mutableBlockPos.immutable(), data.r(), data.g(), data.b(), data.yOffset(), data.textureSection());
+                            data = new OverlayRendererBlockData(mutableBlockPos.immutable(), data.color(), data.yOffset(), data.textureSection());
                         }
                         renderableBlocks.add(data);
                     }
